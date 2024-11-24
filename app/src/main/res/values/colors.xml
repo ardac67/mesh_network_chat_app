@@ -2,4 +2,8 @@
 <resources>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+    <color name="primaryTextColor">#333333</color> <!-- A dark gray color -->
+    <color name="colorPrimary">#6200EE</color> <!-- Adjust to match your theme -->
+    <color name="colorPrimaryDark">#3700B3</color>
+    <color name="colorAccent">#03DAC5</color>
 </resources>

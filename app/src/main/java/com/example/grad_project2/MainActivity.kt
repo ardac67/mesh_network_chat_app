@@ -18,18 +18,23 @@ import android.os.Build
 import android.os.Bundle
 import android.text.TextUtils
 import android.util.Log
+import android.view.View
 import android.widget.CheckBox
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.transition.Visibility
 import com.example.grad_project2.databinding.ActivityMainBinding
+import com.example.grad_project2.SocketConnection
+
 
 class MainActivity : AppCompatActivity() {
     private lateinit var binding : ActivityMainBinding
     private val LOCATION_PERMISSION_REQUEST = 100
     private lateinit var wifiStateReceiver: BroadcastReceiver
+    @SuppressLint("SuspiciousIndentation")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -37,10 +42,67 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
         initializeReceiver()
         checkAndRequestPermissions()
+        //val connection = SocketConnection()
+        //connection.serverConnectionTest("192.168.56.1", 8080)
+        //connection.serverConnectionTest("192.168.137.1", 8080)
+        //connection.serverConnectionTest("192.168.1.200",8080)
+        //connection.listenForBroadcasts()
+        val wifiSettingsButton = binding.wifiButtonLikeImage
+        val expandedExample = binding.expandableLayout
+           wifiSettingsButton.setOnClickListener{
+               //val intent = Intent(this,WifiSettingsActivity::class.java)
+               //startActivity(intent)
+               if(expandedExample.visibility == View.VISIBLE ){
+                   expandedExample.visibility = View.GONE
+               }
+               else{
+                   expandedExample.visibility = View.VISIBLE
+               }
+            }
+        val hotspotSettingsButton = binding.wifiButtonLikeImageHotspot
+        val expandableLayoutHotspot = binding.expandableLayoutHotspot
+        hotspotSettingsButton.setOnClickListener{
+            //val intent = Intent(this,WifiSettingsActivity::class.java)
+            //startActivity(intent)
+            if(expandableLayoutHotspot.visibility == View.VISIBLE ){
+                expandableLayoutHotspot.visibility = View.GONE
+            }
+            else{
+                expandableLayoutHotspot.visibility = View.VISIBLE
+            }
+        }
+        val checkbox = binding.passwordRequiredCheckbox;
+        val passwordInput = binding.passwordInput;
+        val generateButton = binding.generateHotspotButton;
 
+        checkbox.setOnCheckedChangeListener { _, isChecked ->
+            if (isChecked) {
+                passwordInput.visibility = View.VISIBLE
+            } else {
+                passwordInput.visibility = View.GONE
+            }
+        }
+
+        generateButton.setOnClickListener {
+            val password = if (passwordInput.visibility == View.VISIBLE) passwordInput.text.toString() else "No Password"
+            Toast.makeText(this, "Hotspot Config: Password = $password", Toast.LENGTH_SHORT).show()
+        }
+        val chatSessionList = binding.listSessionButton
+        chatSessionList.setOnClickListener {
+            val intent = Intent(this, ListSessions::class.java)
+            startActivity(intent)
+        }
     }
 
     private fun checkAndRequestPermissions() {
+        var hotspot = isHotspotEnabled(this);
+        var checkHotspotBox = binding.hotSpotCheckBox
+        if(hotspot){
+            checkHotspotBox.isChecked = true;
+        }
+        else{
+            checkHotspotBox.isChecked = false;
+        }
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED ||
             ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
 
@@ -127,7 +189,14 @@ class MainActivity : AppCompatActivity() {
                         Toast.makeText(context, "Connected to Wi-Fi", Toast.LENGTH_SHORT).show()
                         Log.d("Arda","Arda")
                         checkAndRequestPermissions()
-
+                        //val sockConnection = SocketConnection();
+                        //val devices = sockConnection.discoverDevices("192.168.1")
+                        //sockConnection.discoverAndScan("192.168.1", 1..1024)
+                        //Log.d("Found_Devices","$devices")
+                        //Log.d("malaktepe","malaktepe")
+                        //val ip = "192.168.1.101"
+                        //val openPorts = sockConnection.scanPorts(ip, 1..1024) // Scans ports 1 to 1024
+                        //Log.d("Open:","$ip: $openPorts")
 
                     } else {
                         // Disconnected from Wi-Fi
@@ -155,5 +224,17 @@ class MainActivity : AppCompatActivity() {
         super.onPause()
         Log.d("bum","bum")
         //unregisterReceiver(wifiStateReceiver)
+    }
+    fun isHotspotEnabled(context: Context): Boolean {
+        val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+
+        return try {
+            val method = wifiManager.javaClass.getDeclaredMethod("isWifiApEnabled")
+            method.isAccessible = true
+            method.invoke(wifiManager) as Boolean
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
     }
 }
