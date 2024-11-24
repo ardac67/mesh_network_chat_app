@@ -65,7 +65,7 @@ class ListSessions : AppCompatActivity() {
             }
         }
     }
-    /*
+    /* // look at this
     fun onSessionClicked(ip: String, port: Int,socketConnection:SocketConnection) {
         socketConnection.subscribeToSession(ip, port) { message ->
             // Handle the received message

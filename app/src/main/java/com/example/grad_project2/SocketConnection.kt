@@ -10,6 +10,8 @@ import java.net.DatagramPacket
 import java.net.DatagramSocket
 import kotlinx.coroutines.*
 import java.io.BufferedReader
+import java.io.InputStreamReader
+import java.net.InetSocketAddress
 
 typealias BroadcastListener = (ip: String, ports: List<Int>, senderIp: String) -> Unit
 
@@ -65,8 +67,8 @@ class SocketConnection(private val scope: CoroutineScope) {
                     // Parse the JSON message
                     try {
                         val jsonObject = JSONObject(message)
-                        val ip = jsonObject.getString("ip")
-                        //val ip = senderIp // if broadcast made from 0.0.0.0 senderIp is enough
+                        //val ip = jsonObject.getString("ip")
+                        val ip = senderIp // if broadcast made from 0.0.0.0 senderIp is enough
                         val portsArray = jsonObject.getJSONArray("ports")
                         val ports = mutableListOf<Int>()
                         for (i in 0 until portsArray.length()) {
@@ -93,11 +95,12 @@ class SocketConnection(private val scope: CoroutineScope) {
         }
     }
 
+
     fun subscribeToSession(
         ip: String,
         port: Int,
+        connectTimeoutMillis: Int = 5000, // 5 seconds connection timeout
         onMessageReceived: (String) -> Unit,
-        connectTimeoutMillis: Long = 5000,
         onSubscriptionSuccess: () -> Unit,
         onSubscriptionFailed: (Exception) -> Unit
     ): Job? {
@@ -106,43 +109,48 @@ class SocketConnection(private val scope: CoroutineScope) {
             onSubscriptionFailed(Exception("Invalid IP Address"))
             return null
         }
+
         return scope.launch(Dispatchers.IO) {
             var socket: Socket? = null
             try {
-                withTimeout(connectTimeoutMillis){
-                    socket = Socket(ip, port)
-                    Log.d("SocketConnection", "Connected to $ip:$port")
+                // Initialize socket
+                socket = Socket()
+                val socketAddress = InetSocketAddress(ip, port)
+                Log.d("SocketConnection", "Attempting to connect to $ip:$port with timeout $connectTimeoutMillis ms")
 
-                    // Notify subscription success on the main thread
-                    withContext(Dispatchers.Main) {
-                        onSubscriptionSuccess()
-                    }
+                // Attempt to connect with timeout
+                socket.connect(socketAddress, connectTimeoutMillis)
+                Log.d("SocketConnection", "Successfully connected to $ip:$port")
 
-                    val inputStream = socket!!.getInputStream() // !! added this idk
-                    val reader = BufferedReader(inputStream.reader())
+                // Notify subscription success on the main thread
+                withContext(Dispatchers.Main) {
+                    onSubscriptionSuccess()
+                }
 
-                    // Continuously read data from the socket
-                    while (isActive) {
-                        val message = reader.readLine()
-                        if (message == null) {
-                            // Connection closed by the server
-                            Log.d("SocketConnection", "Connection closed by server: $ip:$port")
-                            break
-                        } else {
-                            Log.d("SocketMessage", "Received from $ip:$port - $message")
-                            withContext(Dispatchers.Main) {
-                                onMessageReceived(message)
-                            }
+                val inputStream = socket.getInputStream()
+                val reader = BufferedReader(InputStreamReader(inputStream))
+
+                // Continuously read data from the socket
+                while (isActive) {
+                    val message = reader.readLine()
+                    if (message == null) {
+                        // Connection closed by the server
+                        Log.d("SocketConnection", "Connection closed by server: $ip:$port")
+                        break
+                    } else {
+                        Log.d("SocketMessage", "Received from $ip:$port - $message")
+                        withContext(Dispatchers.Main) {
+                            onMessageReceived(message)
                         }
                     }
                 }
 
-            }
-            catch (e: TimeoutCancellationException) {
+            } catch (e: java.net.SocketTimeoutException) {
                 Log.e("SocketError", "Connection timed out to $ip:$port")
-                onSubscriptionFailed(e)
-            }
-            catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    onSubscriptionFailed(e)
+                }
+            } catch (e: Exception) {
                 Log.e("SocketError", "Error on $ip:$port - ${e.message}")
                 withContext(Dispatchers.Main) {
                     onSubscriptionFailed(e)
