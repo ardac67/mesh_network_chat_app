@@ -1,26 +1,20 @@
 package com.example.grad_project2
-import ChatItemAdapter
+
 import android.os.Bundle
-import android.util.Log
 import android.view.View
 import android.widget.ProgressBar
-import androidx.activity.enableEdgeToEdge
+import android.util.Log
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import java.net.DatagramPacket
-import java.net.DatagramSocket
-import java.net.InetAddress
-import com.example.grad_project2.SocketConnection
-import java.net.Socket
+import org.json.JSONObject
 
-class ListSessions : AppCompatActivity() {
+class ListSessions : AppCompatActivity(), OnSessionClickListener {
     private lateinit var recyclerView: RecyclerView
     private lateinit var adapter: ChatItemAdapter
-    private lateinit var progressBar : ProgressBar
+    private lateinit var progressBar: ProgressBar
     private val items = mutableListOf<ChatGlobal>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -28,25 +22,26 @@ class ListSessions : AppCompatActivity() {
         setContentView(R.layout.activity_list_sessions)
 
         progressBar = findViewById(R.id.progressBar)
-        // Initialize RecyclerView
         recyclerView = findViewById(R.id.recyclerView)
         recyclerView.layoutManager = LinearLayoutManager(this)
-        val connection = SocketConnection(lifecycleScope) // could be lifecycle scope
-        adapter = ChatItemAdapter(this,items,connection)
+        val connection = SocketConnection(lifecycleScope)
+
+        // Initialize the adapter **before** setting it to RecyclerView
+        adapter = ChatItemAdapter(this, items, connection, this)
         recyclerView.adapter = adapter
+
         progressBar.visibility = View.VISIBLE
         recyclerView.visibility = View.GONE
-        // Start listening for broadcasts
 
+        // Start listening for broadcasts
         connection.listenForBroadcasts { ip, ports, senderIp ->
             // Check for duplicates
-            val existingDescriptions = items.map { it.port }.toSet()
+            val existingPorts = items.map { it.port }.toSet()
             val newItems = ports.mapNotNull { port ->
-                val description = port
-                if (!existingDescriptions.contains(description)) {
+                if (!existingPorts.contains(port)) {
                     ChatGlobal(
                         ip = ip,
-                        port = description.toInt()
+                        port = port.toInt()
                     )
                 } else {
                     null // Skip if already exists
@@ -56,7 +51,10 @@ class ListSessions : AppCompatActivity() {
             if (newItems.isNotEmpty()) {
                 items.addAll(newItems)
                 adapter.notifyDataSetChanged()
+                Log.d("ListSessions", "Added ${newItems.size} new items")
             }
+
+            // Update UI on the main thread
             runOnUiThread {
                 if (progressBar.visibility == View.VISIBLE) {
                     progressBar.visibility = View.GONE
@@ -65,53 +63,57 @@ class ListSessions : AppCompatActivity() {
             }
         }
     }
-    /* // look at this
-    fun onSessionClicked(ip: String, port: Int,socketConnection:SocketConnection) {
-        socketConnection.subscribeToSession(ip, port) { message ->
-            // Handle the received message
-            // For example, update the UI or notify the user
-            Log.d("SessionMessage", "New message: $message")
+
+    override fun onSessionClicked(item: ChatGlobal,socketConnection: SocketConnection) {
+        if (item.isSubscribed) {
+            // Unsubscribe logic
+            item.isSubscribed = false
+            item.subscriptionJob?.cancel()
+            item.subscriptionJob = null
+            adapter.notifyItemChanged(items.indexOf(item))
+            Toast.makeText(this, "Unsubscribed from ${item.ip}", Toast.LENGTH_SHORT).show()
+            Log.d("ListSessions", "Unsubscribed from ${item.ip}")
+        } else {
+            // Subscribe logic
+            socketConnection.subscribeToSession(
+                ip = item.ip,
+                port = item.port,
+                connectTimeoutMillis = 5000,
+                onMessageReceived = { message ->
+                    Log.d("SessionMessage", "Received from ${item.ip}: $message")
+                    runOnUiThread {
+                        item.unreadMessages++
+                        item.time = JSONObject(message).optString("timestamp", "N/A")
+                        adapter.notifyItemChanged(items.indexOf(item))
+                        Toast.makeText(this, "Message from ${item.ip}: $message", Toast.LENGTH_SHORT).show()
+                        Log.d("ListSessions", "Updated unreadMessages for ${item.ip}")
+                    }
+                },
+                onSubscriptionSuccess = {
+                    runOnUiThread {
+                        item.isSubscribed = true
+                        adapter.notifyItemChanged(items.indexOf(item))
+                        Toast.makeText(this, "Subscribed to ${item.ip}", Toast.LENGTH_SHORT).show()
+                        Log.d("ListSessions", "Subscribed to ${item.ip}")
+                    }
+                },
+                onSubscriptionFailed = { exception ->
+                    runOnUiThread {
+                        Toast.makeText(this, "Failed to subscribe to ${item.ip}: ${exception.message}", Toast.LENGTH_SHORT).show()
+                        Log.e("ListSessions", "Failed to subscribe to ${item.ip}: ${exception.message}")
+                    }
+                }
+            )?.let { job ->
+                // Store the subscription job
+                item.subscriptionJob = job
+                Log.d("ListSessions", "Stored subscription job for ${item.ip}")
+            }
         }
     }
-     */
-//    override fun onCreate(savedInstanceState: Bundle?) {
-//        super.onCreate(savedInstanceState)
-//        setContentView(R.layout.activity_list_sessions)
-//        val connection = SocketConnection()
-//        //connection.serverConnectionTest("192.168.56.1",8080)
-//        //val socketToList = connection.discoverAndScan("192.168.1", 1..1024)
-//        //connection.listenForBroadcasts()
-//        // Sample data
-//
-//        val items = listOf(
-//            ChatGlobal("Item 1", "This is the first item"),
-//            ChatGlobal("Item 2", "This is the second item"),
-//            ChatGlobal("Item 3", "This is the third item")
-//        )
-//        /*
-//        val discoveredItems = socketToList.flatMap { (ip, ports) ->
-//            ports.map { port ->
-//                ChatGlobal(
-//                    title = "Device: $ip",
-//                    description = "Open Port: $port"
-//                )
-//            }
-//        }
-//        */
-//        // Find RecyclerView
-//        val recyclerView: RecyclerView = findViewById(R.id.recyclerView)
-//
-//        // Set LayoutManager
-//        recyclerView.layoutManager = LinearLayoutManager(this)
-//
-//        // Set Adapter
-//        //recyclerView.adapter = ChatItemAdapter(discoveredItems)
-//        recyclerView.adapter = ChatItemAdapter(items)
-//
-//    }
+
     override fun onDestroy() {
         super.onDestroy()
-        // Optionally, cancel all active subscriptions
+        // Cancel all active subscriptions
         items.forEach { session ->
             session.subscriptionJob?.cancel()
         }
