@@ -16,7 +16,7 @@ import java.net.Socket
 
 typealias BroadcastListener = (ip: String, ports: List<Int>, senderIp: String) -> Unit
 
-class SocketConnection(private val scope: CoroutineScope) {
+class SocketConnection(private val scope: CoroutineScope, private val deviceId: String) {
 
     fun getLocalIPAddress(): String {
         return try {
@@ -73,7 +73,7 @@ class SocketConnection(private val scope: CoroutineScope) {
     }
 
     // Listen for UDP broadcasts
-    fun listenForBroadcasts(onBroadcastReceived: BroadcastListener) {
+    fun listenForBroadcasts(onBroadcastReceived: BroadcastListener,) {
         scope.launch(Dispatchers.IO) {
             try {
                 val socket = DatagramSocket(8888, InetAddress.getByName("0.0.0.0"))
@@ -87,17 +87,27 @@ class SocketConnection(private val scope: CoroutineScope) {
                     val message = String(packet.data, 0, packet.length)
                     val senderIp = packet.address.hostAddress
 
+                    val local = getLocalIPAddress()
                     Log.d("Broadcast", "Received: $message from $senderIp")
+                    Log.d("SendervsMine", "$senderIp from $local")
 
-                    // Parse the JSON message
                     try {
                         val jsonObject = JSONObject(message)
+                        val incomingDeviceId = jsonObject.optString("deviceId", "")
+                        if (incomingDeviceId == deviceId) {
+                            // Kendi yayınınızı yoksayın
+                            Log.d("Broadcast", "Ignoring own broadcast with deviceId: $incomingDeviceId")
+                            continue
+                        }
+
                         // If the broadcast includes "ip", use it; otherwise, use senderIp
-                        val ip = senderIp//if (jsonObject.has("ip")) jsonObject.getString("ip") else senderIp
-                        val portsArray = jsonObject.getJSONArray("ports")
+                        val ip = senderIp
+                        val portsArray = jsonObject.optJSONArray("ports")
                         val ports = mutableListOf<Int>()
-                        for (i in 0 until portsArray.length()) {
-                            ports.add(portsArray.getInt(i))
+                        if (portsArray != null) {
+                            for (i in 0 until portsArray.length()) {
+                                ports.add(portsArray.getInt(i))
+                            }
                         }
 
                         Log.d("Broadcast", "IP: $ip, Ports: $ports")
@@ -109,8 +119,6 @@ class SocketConnection(private val scope: CoroutineScope) {
                     } catch (e: Exception) {
                         Log.e("JSONError", "Failed to parse JSON: ${e.message}")
                     }
-
-                    // Continue listening indefinitely
                 }
                 // socket.close() // Unreachable due to infinite loop; consider handling socket closure
             } catch (e: Exception) {
@@ -135,7 +143,7 @@ class SocketConnection(private val scope: CoroutineScope) {
             }
             return null
         }
-
+        Log.d("Babacik", "$ip,arda")
         return scope.launch(Dispatchers.IO) {
             var socket: Socket? = null
             try {

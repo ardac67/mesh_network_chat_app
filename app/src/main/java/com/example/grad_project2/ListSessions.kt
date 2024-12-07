@@ -27,6 +27,7 @@ import org.json.JSONObject
 import java.net.InetAddress
 import java.net.NetworkInterface
 import java.util.Collections
+import java.util.UUID
 
 class ListSessions : AppCompatActivity(), OnSessionClickListener {
     private lateinit var recyclerView: RecyclerView
@@ -36,14 +37,18 @@ class ListSessions : AppCompatActivity(), OnSessionClickListener {
     private lateinit var socketConnection: SocketConnection
     private lateinit var localIPAddress: String
     private val tcpServers = mutableListOf<TcpServer>()
+    private lateinit var sessionManager: SessionManager
+    private lateinit var udpBroadcaster: UdpBroadcaster
+    private lateinit var deviceId: String // Cihaz UUID'si
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_list_sessions)
-
+        deviceId = getDeviceIdm()
+        Log.d("ListSessionsActivity", "Device ID: $deviceId")
         progressBar = findViewById(R.id.progressBar)
         recyclerView = findViewById(R.id.recyclerView)
         recyclerView.layoutManager = LinearLayoutManager(this)
-        socketConnection = SocketConnection(lifecycleScope)
+        socketConnection = SocketConnection(lifecycleScope,deviceId)
 
         // Kendi IP adresinizi alın
         localIPAddress = socketConnection.getLocalIPAddress()
@@ -61,7 +66,27 @@ class ListSessions : AppCompatActivity(), OnSessionClickListener {
         createSession.setOnClickListener {
             openCreateSessionModal()
         }
+        // Initialize SessionManager first
+        sessionManager = SessionManager(
+            scope = lifecycleScope,
+            ipAddress = localIPAddress
+        )
 
+        // Initialize UdpBroadcaster with a lambda that accesses sessionManager's getActivePorts()
+        udpBroadcaster = UdpBroadcaster(
+            ip = localIPAddress,
+            getPorts = { sessionManager.getActivePorts() },
+            broadcastPort = 8888,
+            interval = 5000,
+            deviceId
+        )
+
+        // Start broadcasting
+
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            udpBroadcaster.startBroadcasting()
+        }
         // Start listening for broadcasts
         socketConnection.listenForBroadcasts { ip, ports, senderIp ->
             // Check for duplicates based on IP and Port
@@ -87,6 +112,7 @@ class ListSessions : AppCompatActivity(), OnSessionClickListener {
                 }
             }
 
+
             // Update UI on the main thread
             runOnUiThread {
                 if (progressBar.visibility == View.VISIBLE) {
@@ -95,6 +121,7 @@ class ListSessions : AppCompatActivity(), OnSessionClickListener {
                 }
             }
         }
+
     }
 
     override fun onSessionClicked(item: ChatGlobal, socketConnection: SocketConnection) {
@@ -208,47 +235,26 @@ class ListSessions : AppCompatActivity(), OnSessionClickListener {
             // Add the new session to the list and notify the adapter
             items.add(newSession)
             adapter.notifyItemInserted(items.size - 1)
+            
+            sessionManager.createSession(port = port) { senderIp, senderPort, message ->
+                runOnUiThread {
+                    // Gelen mesajları işle
+                    Toast.makeText(
+                        this,
+                        "Message from $senderIp:$senderPort: $message",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    Log.d("ListSessionsActivity", "Message from $senderIp:$senderPort: $message")
 
-            val jsonMsg = JSONObject().apply {
-                put("ip", newSession.ip)
-                put("port", newSession.port)
-            }.toString()
-
-            val tcpServer = TcpServer(
-                scope = lifecycleScope, // CoroutineScope olarak lifecycleScope kullanın
-                port = newSession.port,
-                onMessageReceived = { senderIp, senderPort, message ->
-                    runOnUiThread {
-                        // Gelen mesajları işleyin, örneğin:
-                        Toast.makeText(
-                            this,
-                            "Message from $senderIp:$senderPort: $message",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                        Log.d("ListSessionsActivity", "Message from $senderIp:$senderPort: $message")
-
-                        // İlgili oturuma unreadMessages sayısını artırabilirsiniz
-                        val session = items.find { it.ip == senderIp && it.port == senderPort }
-                        session?.let {
-                            it.unreadMessages++
-                            it.time = "1"
-                            adapter.notifyItemChanged(items.indexOf(it))
-                        }
+                    // İlgili oturuma unreadMessages sayısını artır
+                    val session = items.find { it.ip == senderIp && it.port == senderPort }
+                    session?.let {
+                        it.unreadMessages++
+                        it.time = "1" // Örneğin, timestamp değeri ekleyin
+                        adapter.notifyItemChanged(items.indexOf(it))
                     }
                 }
-            )
-            tcpServer.startServer()
-            // Broadcast the new session
-
-            val broadcaster = UdpBroadcaster(ip, port)
-            lifecycleScope.launch(Dispatchers.Main) {
-                broadcaster.startBroadcasting()
             }
-
-            Toast.makeText(this, "Session Created: $ip:$port", Toast.LENGTH_SHORT).show()
-            Log.d("ListSessions", "Created new session: $ip:$port")
-
-            dialog.dismiss()
 
             Toast.makeText(this, "Session Created: $ip:$port", Toast.LENGTH_SHORT).show()
             Log.d("ListSessions", "Created new session: $ip:$port")
@@ -291,6 +297,15 @@ class ListSessions : AppCompatActivity(), OnSessionClickListener {
             return "0.0.0.0"
         }
     }
+    private fun getDeviceIdm(): String {
+        val prefs = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+        var deviceId = prefs.getString("device_id", null)
+        if (deviceId == null) {
+            deviceId = UUID.randomUUID().toString()
+            prefs.edit().putString("device_id", deviceId).apply()
+        }
+        return deviceId
+    }
 
     private fun getIpFromNetworkInterface(interfaceName: String): String? {
         try {
@@ -316,3 +331,4 @@ class ListSessions : AppCompatActivity(), OnSessionClickListener {
         return null
     }
 }
+

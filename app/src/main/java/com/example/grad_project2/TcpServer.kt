@@ -12,7 +12,7 @@ import java.net.Socket
 
 class TcpServer(
     private val scope: CoroutineScope,
-    private val port: Int,
+    val port: Int,
     private val onMessageReceived: (ip: String, port: Int, message: String) -> Unit
 ) {
 
