@@ -1,29 +1,41 @@
 package com.example.grad_project2
 
 import android.app.Dialog
+import android.content.Context
 import android.content.res.Resources
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.os.Bundle
-import android.view.View
-import android.widget.ProgressBar
 import android.util.Log
+import android.view.View
 import android.view.WindowManager
 import android.widget.Button
+import android.widget.ProgressBar
 import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.textfield.TextInputEditText
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import org.json.JSONObject
+import java.net.InetAddress
+import java.net.NetworkInterface
+import java.util.Collections
 
 class ListSessions : AppCompatActivity(), OnSessionClickListener {
     private lateinit var recyclerView: RecyclerView
     private lateinit var adapter: ChatItemAdapter
     private lateinit var progressBar: ProgressBar
     private val items = mutableListOf<ChatGlobal>()
-
+    private lateinit var socketConnection: SocketConnection
+    private lateinit var localIPAddress: String
+    private val tcpServers = mutableListOf<TcpServer>()
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_list_sessions)
@@ -31,10 +43,14 @@ class ListSessions : AppCompatActivity(), OnSessionClickListener {
         progressBar = findViewById(R.id.progressBar)
         recyclerView = findViewById(R.id.recyclerView)
         recyclerView.layoutManager = LinearLayoutManager(this)
-        val connection = SocketConnection(lifecycleScope)
+        socketConnection = SocketConnection(lifecycleScope)
+
+        // Kendi IP adresinizi alın
+        localIPAddress = socketConnection.getLocalIPAddress()
+        Log.d("ListSessions", "Local IP Address: $localIPAddress")
 
         // Initialize the adapter **before** setting it to RecyclerView
-        adapter = ChatItemAdapter(this, items, connection, this)
+        adapter = ChatItemAdapter(this, items, socketConnection, this)
         recyclerView.adapter = adapter
 
         progressBar.visibility = View.VISIBLE
@@ -47,24 +63,28 @@ class ListSessions : AppCompatActivity(), OnSessionClickListener {
         }
 
         // Start listening for broadcasts
-        connection.listenForBroadcasts { ip, ports, senderIp ->
-            // Check for duplicates
-            val existingPorts = items.map { it.port }.toSet()
+        socketConnection.listenForBroadcasts { ip, ports, senderIp ->
+            // Check for duplicates based on IP and Port
             val newItems = ports.mapNotNull { port ->
-                if (!existingPorts.contains(port)) {
+                val portInt = port
+                if (portInt != null && !items.any { it.ip == ip && it.port == portInt }) {
                     ChatGlobal(
                         ip = ip,
-                        port = port.toInt()
+                        port = portInt,
+                        isHostMe = (ip == localIPAddress) // Kendi IP adresinizle karşılaştırın
                     )
                 } else {
-                    null // Skip if already exists
+                    null // Skip if already exists or invalid port
                 }
             }
 
             if (newItems.isNotEmpty()) {
-                items.addAll(newItems)
-                adapter.notifyDataSetChanged()
-                Log.d("ListSessions", "Added ${newItems.size} new items")
+                runOnUiThread {
+                    val startPosition = items.size
+                    items.addAll(newItems)
+                    adapter.notifyItemRangeInserted(startPosition, newItems.size)
+                    Log.d("ListSessions", "Added ${newItems.size} new items")
+                }
             }
 
             // Update UI on the main thread
@@ -77,15 +97,24 @@ class ListSessions : AppCompatActivity(), OnSessionClickListener {
         }
     }
 
-    override fun onSessionClicked(item: ChatGlobal,socketConnection: SocketConnection) {
+    override fun onSessionClicked(item: ChatGlobal, socketConnection: SocketConnection) {
+        if (item.isHostMe) {
+            // Kendi oturumunuzdaysanız, farklı bir işlem yapabilirsiniz veya kullanıcıyı bilgilendirebilirsiniz
+            Toast.makeText(this, "You are the host of this session.", Toast.LENGTH_SHORT).show()
+            //Log.d("ListSessions", "User is the host of this session: ${item.ip}:${item.port}")
+            item.isSubscribed = false
+            item.subscriptionJob = null
+            return
+        }
+
         if (item.isSubscribed) {
             // Unsubscribe logic
             item.isSubscribed = false
             item.subscriptionJob?.cancel()
             item.subscriptionJob = null
             adapter.notifyItemChanged(items.indexOf(item))
-            Toast.makeText(this, "Unsubscribed from ${item.ip}", Toast.LENGTH_SHORT).show()
-            Log.d("ListSessions", "Unsubscribed from ${item.ip}")
+            Toast.makeText(this, "Unsubscribed from ${item.ip}:${item.port}", Toast.LENGTH_SHORT).show()
+            Log.d("ListSessions", "Unsubscribed from ${item.ip}:${item.port}")
         } else {
             // Subscribe logic
             socketConnection.subscribeToSession(
@@ -93,33 +122,33 @@ class ListSessions : AppCompatActivity(), OnSessionClickListener {
                 port = item.port,
                 connectTimeoutMillis = 5000,
                 onMessageReceived = { message ->
-                    Log.d("SessionMessage", "Received from ${item.ip}: $message")
+                    Log.d("SessionMessage", "Received from ${item.ip}:${item.port} - $message")
                     runOnUiThread {
                         item.unreadMessages++
                         item.time = JSONObject(message).optString("timestamp", "N/A")
                         adapter.notifyItemChanged(items.indexOf(item))
-                        Toast.makeText(this, "Message from ${item.ip}: $message", Toast.LENGTH_SHORT).show()
-                        Log.d("ListSessions", "Updated unreadMessages for ${item.ip}")
+                        Toast.makeText(this, "Message from ${item.ip}:${item.port}: $message", Toast.LENGTH_SHORT).show()
+                        Log.d("ListSessions", "Updated unreadMessages for ${item.ip}:${item.port}")
                     }
                 },
                 onSubscriptionSuccess = {
                     runOnUiThread {
                         item.isSubscribed = true
                         adapter.notifyItemChanged(items.indexOf(item))
-                        Toast.makeText(this, "Subscribed to ${item.ip}", Toast.LENGTH_SHORT).show()
-                        Log.d("ListSessions", "Subscribed to ${item.ip}")
+                        Toast.makeText(this, "Subscribed to ${item.ip}:${item.port}", Toast.LENGTH_SHORT).show()
+                        Log.d("ListSessions", "Subscribed to ${item.ip}:${item.port}")
                     }
                 },
                 onSubscriptionFailed = { exception ->
                     runOnUiThread {
-                        Toast.makeText(this, "Failed to subscribe to ${item.ip}: ${exception.message}", Toast.LENGTH_SHORT).show()
-                        Log.e("ListSessions", "Failed to subscribe to ${item.ip}: ${exception.message}")
+                        Toast.makeText(this, "Failed to subscribe to ${item.ip}:${item.port}: ${exception.message}", Toast.LENGTH_SHORT).show()
+                        Log.e("ListSessions", "Failed to subscribe to ${item.ip}:${item.port}: ${exception.message}")
                     }
                 }
             )?.let { job ->
                 // Store the subscription job
                 item.subscriptionJob = job
-                Log.d("ListSessions", "Stored subscription job for ${item.ip}")
+                Log.d("ListSessions", "Stored subscription job for ${item.ip}:${item.port}")
             }
         }
     }
@@ -130,13 +159,100 @@ class ListSessions : AppCompatActivity(), OnSessionClickListener {
         items.forEach { session ->
             session.subscriptionJob?.cancel()
         }
+        tcpServers.forEach { it.stopServer() }
+        tcpServers.clear()
     }
+
     private fun openCreateSessionModal() {
         val dialog = Dialog(this)
         dialog.setContentView(R.layout.dialog_create_session)
 
         val createSessionButton = dialog.findViewById<Button>(R.id.createSessionButton)
+        val ipEditText = dialog.findViewById<TextInputEditText>(R.id.ipEditText)
+        val portEditText = dialog.findViewById<TextInputEditText>(R.id.portEditText)
+
         createSessionButton.setOnClickListener {
+            val ip = localIPAddress
+            val portStr = portEditText.text.toString().trim()
+
+            if (ip.isEmpty() || portStr.isEmpty()) {
+                Toast.makeText(this, "Please enter both IP and Port.", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            if (!android.util.Patterns.IP_ADDRESS.matcher(ip).matches()) {
+                Toast.makeText(this, "Invalid IP Address.", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            val port = portStr.toIntOrNull()
+            if (port == null || port !in 1..65535) {
+                Toast.makeText(this, "Invalid Port Number.", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            // Create a new ChatGlobal item
+            val newSession = ChatGlobal(
+                ip = ip,
+                port = port,
+                isHostMe = true// Kendi IP adresinizle karşılaştırın
+            )
+
+            // Check for duplicates based on IP and Port
+            val isDuplicate = items.any { it.ip == newSession.ip && it.port == newSession.port }
+            if (isDuplicate) {
+                Toast.makeText(this, "Session with this IP and Port already exists.", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            // Add the new session to the list and notify the adapter
+            items.add(newSession)
+            adapter.notifyItemInserted(items.size - 1)
+
+            val jsonMsg = JSONObject().apply {
+                put("ip", newSession.ip)
+                put("port", newSession.port)
+            }.toString()
+
+            val tcpServer = TcpServer(
+                scope = lifecycleScope, // CoroutineScope olarak lifecycleScope kullanın
+                port = newSession.port,
+                onMessageReceived = { senderIp, senderPort, message ->
+                    runOnUiThread {
+                        // Gelen mesajları işleyin, örneğin:
+                        Toast.makeText(
+                            this,
+                            "Message from $senderIp:$senderPort: $message",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                        Log.d("ListSessionsActivity", "Message from $senderIp:$senderPort: $message")
+
+                        // İlgili oturuma unreadMessages sayısını artırabilirsiniz
+                        val session = items.find { it.ip == senderIp && it.port == senderPort }
+                        session?.let {
+                            it.unreadMessages++
+                            it.time = "1"
+                            adapter.notifyItemChanged(items.indexOf(it))
+                        }
+                    }
+                }
+            )
+            tcpServer.startServer()
+            // Broadcast the new session
+
+            val broadcaster = UdpBroadcaster(ip, port)
+            lifecycleScope.launch(Dispatchers.Main) {
+                broadcaster.startBroadcasting()
+            }
+
+            Toast.makeText(this, "Session Created: $ip:$port", Toast.LENGTH_SHORT).show()
+            Log.d("ListSessions", "Created new session: $ip:$port")
+
+            dialog.dismiss()
+
+            Toast.makeText(this, "Session Created: $ip:$port", Toast.LENGTH_SHORT).show()
+            Log.d("ListSessions", "Created new session: $ip:$port")
+
             dialog.dismiss()
         }
 
@@ -151,5 +267,52 @@ class ListSessions : AppCompatActivity(), OnSessionClickListener {
             window.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
         }
     }
+    fun getLocalIpAddress(context: Context): String {
+        try {
+            val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+            val activeNetwork = connectivityManager.activeNetwork ?: return "0.0.0.0"
+            val networkCapabilities = connectivityManager.getNetworkCapabilities(activeNetwork) ?: return "0.0.0.0"
 
+            val ipAddress: String = when {
+                networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> {
+                    getIpFromNetworkInterface("wlan0") ?: "0.0.0.0"
+                }
+                networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> {
+                    getIpFromNetworkInterface("rmnet0") ?: "0.0.0.0"
+                }
+                else -> {
+                    getIpFromNetworkInterface("eth0") ?: "0.0.0.0"
+                }
+            }
+
+            return ipAddress
+        } catch (ex: Exception) {
+            Log.e("Utility", "Error getting local IP address: ${ex.message}")
+            return "0.0.0.0"
+        }
+    }
+
+    private fun getIpFromNetworkInterface(interfaceName: String): String? {
+        try {
+            val interfaces = NetworkInterface.getNetworkInterfaces()
+            for (networkInterface in Collections.list(interfaces)) {
+                if (networkInterface.name.equals(interfaceName, ignoreCase = true)) {
+                    val addresses = networkInterface.inetAddresses
+                    for (address in Collections.list(addresses)) {
+                        if (!address.isLoopbackAddress && address is InetAddress) {
+                            val ip = address.hostAddress
+                            if (ip.contains(":")) {
+                                // IPv6 adresini atla
+                                continue
+                            }
+                            return ip
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("Utility", "Error getting IP from interface $interfaceName: ${e.message}")
+        }
+        return null
+    }
 }

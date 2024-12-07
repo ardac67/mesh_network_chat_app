@@ -1,4 +1,3 @@
-// ChatItemAdapter.kt
 package com.example.grad_project2
 
 import android.content.Context
@@ -39,12 +38,21 @@ class ChatItemAdapter(
         val item = itemList[position]
         Log.d("Adapter", "Binding position: $position with IP: ${item.ip}")
 
-        holder.titleTextView.text = item.ip
-        holder.descriptionTextView.text = item.port.toString()
+        // Display "IP - Port" in the title
+        holder.titleTextView.text = "${item.ip} - ${item.port}"
+        holder.descriptionTextView.text = ""
         holder.unreadMessages.text = item.unreadMessages.toString()
         holder.timeSend.text = item.time
 
         // Set background based on subscription state
+        if (item.isHostMe) {
+            holder.itemView.setBackground(ContextCompat.getDrawable(context, R.drawable.gradient_background))
+            val onlineIndicator = holder.itemView.findViewById<View>(R.id.onlineIndicator)
+            onlineIndicator.setBackground(ContextCompat.getDrawable(context, R.drawable.circle_background_green))
+            val connectSocketImage = holder.itemView.findViewById<View>(R.id.connectSocketImage)
+            connectSocketImage.isClickable = false
+            connectSocketImage.alpha = 0.5f
+        }
         if (item.isSubscribed) {
             holder.itemView.setBackground(ContextCompat.getDrawable(context, R.drawable.gradient_background))
             val onlineIndicator = holder.itemView.findViewById<View>(R.id.onlineIndicator)
@@ -66,7 +74,7 @@ class ChatItemAdapter(
         // Set click listener on connectSocketImage
         connectSocketImage.setOnClickListener {
             Log.d("Adapter", "connectSocketImage clicked at position: $position")
-            listener.onSessionClicked(item,socketConnection) // Delegate to the activity
+            listener.onSessionClicked(item, socketConnection) // Delegate to the activity
         }
     }
 

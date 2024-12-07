@@ -18,6 +18,25 @@ typealias BroadcastListener = (ip: String, ports: List<Int>, senderIp: String) -
 
 class SocketConnection(private val scope: CoroutineScope) {
 
+    fun getLocalIPAddress(): String {
+        return try {
+            val interfaces = java.net.NetworkInterface.getNetworkInterfaces()
+            while (interfaces.hasMoreElements()) {
+                val iface = interfaces.nextElement()
+                val addresses = iface.inetAddresses
+                while (addresses.hasMoreElements()) {
+                    val addr = addresses.nextElement()
+                    if (!addr.isLoopbackAddress && addr is InetAddress && addr.hostAddress.contains(".")) {
+                        return addr.hostAddress
+                    }
+                }
+            }
+            "Unknown"
+        } catch (ex: Exception) {
+            Log.e("SocketConnection", "Error getting local IP address: ${ex.message}")
+            "Unknown"
+        }
+    }
     // Function to test server connection
     fun serverConnectionTest(ip: String, port: Int) {
         if (!isValidIpAddress(ip)) {
