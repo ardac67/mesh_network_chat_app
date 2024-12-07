@@ -1,9 +1,16 @@
 package com.example.grad_project2
 
+import android.app.Dialog
+import android.content.res.Resources
+import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
 import android.view.View
 import android.widget.ProgressBar
 import android.util.Log
+import android.view.WindowManager
+import android.widget.Button
+import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
@@ -32,6 +39,12 @@ class ListSessions : AppCompatActivity(), OnSessionClickListener {
 
         progressBar.visibility = View.VISIBLE
         recyclerView.visibility = View.GONE
+
+        val createSession = findViewById<FrameLayout>(R.id.createSession)
+
+        createSession.setOnClickListener {
+            openCreateSessionModal()
+        }
 
         // Start listening for broadcasts
         connection.listenForBroadcasts { ip, ports, senderIp ->
@@ -118,4 +131,25 @@ class ListSessions : AppCompatActivity(), OnSessionClickListener {
             session.subscriptionJob?.cancel()
         }
     }
+    private fun openCreateSessionModal() {
+        val dialog = Dialog(this)
+        dialog.setContentView(R.layout.dialog_create_session)
+
+        val createSessionButton = dialog.findViewById<Button>(R.id.createSessionButton)
+        createSessionButton.setOnClickListener {
+            dialog.dismiss()
+        }
+
+        dialog.show()
+
+        val window = dialog.window
+        if (window != null) {
+            val metrics = Resources.getSystem().displayMetrics
+            val width = (metrics.widthPixels * 0.90).toInt()
+            val height = WindowManager.LayoutParams.WRAP_CONTENT
+            window.setLayout(width, height)
+            window.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+        }
+    }
+
 }

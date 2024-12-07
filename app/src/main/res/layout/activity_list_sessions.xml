@@ -30,7 +30,9 @@
             android:layout_width="48dp"
             android:layout_height="48dp"
             android:layout_gravity="center"
-            android:background="@drawable/message_icon">
+            android:background="@drawable/message_icon"
+            android:clickable="true"
+            android:id="@+id/createSession">
 
         </FrameLayout>
 
