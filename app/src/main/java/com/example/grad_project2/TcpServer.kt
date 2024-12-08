@@ -1,4 +1,6 @@
+// TcpServer.kt
 package com.example.grad_project2
+
 import android.util.Log
 import kotlinx.coroutines.*
 import org.json.JSONObject
@@ -11,7 +13,7 @@ import java.net.Socket
 class TcpServer(
     private val scope: CoroutineScope,
     val port: Int,
-    private val onMessageReceived: (ip: String, port: Int, message: String) -> Unit
+    private val messageListener: OnMessageReceivedListener
 ) {
     private var serverSocket: ServerSocket? = null
     private val clients = mutableListOf<ClientConnection>()
@@ -58,15 +60,20 @@ class TcpServer(
                         try {
                             val json = JSONObject(it)
                             val message = json.getString("message")
-                            onMessageReceived(client.inetAddress.hostAddress, client.port, message)
+                            val msg = Message(
+                                text = message,
+                                isSentByMe = false,
+                                timestamp = System.currentTimeMillis(),
+                                type = "string"
+                            )
+                            // Notify the listener (ChatActivity)
                             messageListener.onMessageReceived(msg)
-                            // Ack
-                            /*
+
+                            // Optional: Send acknowledgment to the sender only
                             val response = JSONObject().apply {
                                 put("message", "Message received.")
                             }.toString()
-                            broadcastToClients(response)
-                            */
+                            writer.println(response)
                         } catch (e: Exception) {
                             Log.e("TcpServer", "Invalid JSON: ${e.message}")
                             val errorMsg = JSONObject().apply {

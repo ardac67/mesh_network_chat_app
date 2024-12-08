@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:orientation="vertical"
-    android:layout_width="wrap_content"
+    android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:padding="8dp"
-    android:layout_gravity="start">
+    android:gravity="end"
+    android:padding="8dp">
 
     <!-- Message Bubble -->
     <LinearLayout
@@ -12,27 +12,35 @@
         android:layout_height="wrap_content"
         android:background="@drawable/incoming_message_bubble"
         android:padding="12dp"
-        android:elevation="2dp"
-        android:orientation="vertical">
+        android:orientation="vertical"
+        android:elevation="2dp">
 
         <!-- Message Text -->
         <TextView
-            android:id="@+id/receivedMessageTextView"
+            android:id="@+id/sentMessageTextView"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:textColor="@android:color/black"
             android:textSize="16sp"
             android:maxWidth="250dp" />
 
-        <!-- Timestamp -->
-        <TextView
-            android:id="@+id/timestampTextView"
+        <!-- Timestamp and Double-Check Icon -->
+        <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textColor="@android:color/darker_gray"
-            android:textSize="12sp"
+            android:orientation="horizontal"
             android:layout_marginTop="4dp"
-            android:gravity="end"
-            android:text="15:03" />
+            android:gravity="end">
+
+            <TextView
+                android:id="@+id/timestampTextView"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="@android:color/darker_gray"
+                android:textSize="12sp"
+                android:text="15:03"
+                android:layout_marginEnd="4dp" />
+
+        </LinearLayout>
     </LinearLayout>
 </LinearLayout>

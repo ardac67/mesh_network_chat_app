@@ -1,4 +1,6 @@
+// ListSessions.kt (Updated Excerpt)
 package com.example.grad_project2
+
 import android.app.Dialog
 import android.content.Context
 import android.content.Intent
@@ -19,7 +21,6 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.example.grad_project2.ListSessions.ListSessions.isHost
 import com.example.grad_project2.ListSessions.ListSessions.sharedSocketConnection
 import com.google.android.material.textfield.TextInputEditText
 import java.net.InetAddress
@@ -27,17 +28,20 @@ import java.net.NetworkInterface
 import java.util.Collections
 import java.util.UUID
 
+
+
 class ListSessions : AppCompatActivity() {
 
     object ListSessions {
         var sharedSocketConnection: SocketConnection? = null
         var sharedTcpServer: TcpServer? = null
-        var isHost : Boolean = false
+
+        // Callback for the host to receive messages
+        var hostMessageListener: OnMessageReceivedListener? = null
     }
 
     private lateinit var recyclerView: RecyclerView
     private lateinit var adapter: ChatItemAdapter
-    private lateinit var adapterChat: MessageAdapter
     private lateinit var progressBar: ProgressBar
     private val items = mutableListOf<ChatGlobal>()
     private lateinit var localIPAddress: String
@@ -63,8 +67,14 @@ class ListSessions : AppCompatActivity() {
         sessionManager = SessionManager(scope = lifecycleScope, ipAddress = localIPAddress)
         adapter = ChatItemAdapter(this, items, socketConnection, object : OnSessionClickListener {
             override fun onSessionClicked(item: ChatGlobal, socketConnection: SocketConnection) {
-                if (!item.isHostMe) {
-                    //Toast.makeText(this@ListSessions, "You are the host of this session.", Toast.LENGTH_SHORT).show()
+                if (item.isHostMe) {
+                    // Host logic: Start ChatActivity as host
+                    val intent = Intent(this@ListSessions, ChatActivity::class.java)
+                    intent.putExtra("IS_HOST", true)
+                    intent.putExtra("HOST_IP", item.ip)
+                    intent.putExtra("HOST_PORT", item.port)
+                    startActivity(intent)
+                } else {
                     if (item.isSubscribed) {
                         // Unsubscribe logic
                         item.isSubscribed = false
@@ -90,7 +100,9 @@ class ListSessions : AppCompatActivity() {
                                     // Store the current socketConnection in companion
                                     sharedSocketConnection = socketConnection
 
+                                    // Start ChatActivity as client
                                     val intent = Intent(this@ListSessions, ChatActivity::class.java)
+                                    intent.putExtra("IS_HOST", false)
                                     intent.putExtra("HOST_IP", item.ip)
                                     intent.putExtra("HOST_PORT", item.port)
                                     startActivity(intent)
@@ -106,16 +118,7 @@ class ListSessions : AppCompatActivity() {
                         }
                     }
                 }
-                else{
-                    isHost = true
-                    val intent = Intent(this@ListSessions, ChatActivity::class.java)
-                    intent.putExtra("HOST_IP", item.ip)
-                    intent.putExtra("HOST_PORT", item.port)
-                    startActivity(intent)
-                }
-
             }
-
         })
         recyclerView.adapter = adapter
 
@@ -157,11 +160,15 @@ class ListSessions : AppCompatActivity() {
                 return@setOnClickListener
             }
 
-            sessionManager.createSession(port) { senderIp, senderPort, message ->
-                runOnUiThread {
-                    Toast.makeText(this, "From $senderIp:$senderPort: $message", Toast.LENGTH_SHORT).show()
+            // Define a message listener for the host
+            val messageListener = object : OnMessageReceivedListener {
+                override fun onMessageReceived(message: Message) {
+                    // Forward the message to the host's ChatActivity
+                    ListSessions.hostMessageListener?.onMessageReceived(message)
                 }
             }
+
+            sessionManager.createSession(port, messageListener)
 
             val newSession = ChatGlobal(ip = ip, port = port, isHostMe = true)
             items.add(newSession)

@@ -3,14 +3,15 @@ import android.os.Bundle
 import android.util.Log
 import android.widget.EditText
 import android.widget.ImageView
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.grad_project2.ListSessions.ListSessions
-import com.example.grad_project2.ListSessions.ListSessions.isHost
 
-class ChatActivity() : AppCompatActivity() {
+
+class ChatActivity : AppCompatActivity() {
     private lateinit var messagesRecyclerView: RecyclerView
     private lateinit var messageEditText: EditText
     private lateinit var sendButton: ImageView
@@ -21,11 +22,14 @@ class ChatActivity() : AppCompatActivity() {
     private lateinit var socketConnection: SocketConnection
     private var hostIp: String? = null
     private var hostPort: Int? = null
+    private var isHost: Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_chat)
 
+        // Retrieve Intent extras
+        isHost = intent.getBooleanExtra("IS_HOST", false)
         hostIp = intent.getStringExtra("HOST_IP")
         hostPort = intent.getIntExtra("HOST_PORT", -1)
 
@@ -45,9 +49,21 @@ class ChatActivity() : AppCompatActivity() {
             stackFromEnd = true
         }
 
-        // Assuming you have a global reference or a way to get the same socketConnection
-        // instance used by ListSessions. For demonstration, assume it's a singleton or stored in an Application class.
-        if(!isHost){
+        val bannerTextView: TextView = findViewById(R.id.topBannerText)
+
+        // Debug logs for isHost and hostIp values
+        Log.d("ChatActivity", "isHost: $isHost")
+        Log.d("ChatActivity", "hostIp: $hostIp")
+
+        bannerTextView.text = if (isHost) {
+            "Host IP: $hostIp,$hostPort".also { Log.d("ChatActivity", "Banner Text: $it") } // Log the banner text
+        } else {
+            "Host IP: $hostIp,$hostPort".also { Log.d("ChatActivity", "Banner Text: $it") } // Log the banner text
+        }
+
+
+        if (!isHost) {
+            // Client logic
             val connection = ListSessions.sharedSocketConnection
             if (connection == null) {
                 Toast.makeText(this, "No socket connection available.", Toast.LENGTH_SHORT).show()
@@ -58,28 +74,30 @@ class ChatActivity() : AppCompatActivity() {
             socketConnection = connection
 
             // Set message listener
-            // This callback triggers whenever a new message arrives from the server
-            // parse it and show in UI
             socketConnection.subscribeToSession(
                 ip = hostIp!!,
                 port = hostPort!!,
                 onMessageReceived = { message ->
-                    if (message.isNullOrEmpty()) {
-                        return@subscribeToSession
-                    }
-                    val json = org.json.JSONObject(message)
-                    val msgText = json.getString("message")
-                    Log.d("MessageCameOut",msgText)
-                    val receivedMsg = Message(
-                        text = msgText,
-                        isSentByMe = false,
-                        timestamp = System.currentTimeMillis(),
-                        type = "string"
-                    )
-                    runOnUiThread {
-                        messages.add(receivedMsg)
-                        adapter.notifyItemInserted(messages.size - 1)
-                        messagesRecyclerView.scrollToPosition(messages.size - 1)
+                    if (!message.isNullOrEmpty()) {
+                        val json = org.json.JSONObject(message)
+                        val msgText = json.getString("message")
+                        Log.d("MessageCameOut", msgText)
+                        val receivedMsg = Message(
+                            text = msgText,
+                            isSentByMe = false,
+                            timestamp = System.currentTimeMillis(),
+                            type = "string"
+                        )
+                        if(!msgText.equals("Message received."))
+                        {
+                            Log.d("messagemal","$receivedMsg")
+                            runOnUiThread {
+                                messages.add(receivedMsg)
+                                adapter.notifyItemInserted(messages.size - 1)
+                                messagesRecyclerView.scrollToPosition(messages.size - 1)
+                            }
+                        }
+
                     }
                 },
                 onSubscriptionSuccess = {
@@ -94,8 +112,20 @@ class ChatActivity() : AppCompatActivity() {
                     }
                 }
             )
+        } else {
+            // Host logic: Set up callback to receive messages
+            ListSessions.hostMessageListener = object : OnMessageReceivedListener {
+                override fun onMessageReceived(message: Message) {
+                    runOnUiThread {
+                        messages.add(message)
+                        adapter.notifyItemInserted(messages.size - 1)
+                        messagesRecyclerView.scrollToPosition(messages.size - 1)
+                    }
+                }
+            }
         }
-        // ChatActivity.kt (Excerpt)
+
+        // Send button logic
         sendButton.setOnClickListener {
             val text = messageEditText.text.toString().trim()
             if (text.isNotEmpty()) {
@@ -110,7 +140,7 @@ class ChatActivity() : AppCompatActivity() {
                 messagesRecyclerView.scrollToPosition(messages.size - 1)
                 messageEditText.text.clear()
 
-                if (ListSessions.isHost) {
+                if (isHost) {
                     // Host: broadcast to all connected clients
                     val tcpServer = ListSessions.sharedTcpServer
                     if (tcpServer == null) {
@@ -126,7 +156,12 @@ class ChatActivity() : AppCompatActivity() {
                 }
             }
         }
+    }
 
-
+    override fun onDestroy() {
+        super.onDestroy()
+        if (isHost) {
+            ListSessions.hostMessageListener = null
+        }
     }
 }

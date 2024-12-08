@@ -1,7 +1,7 @@
 // SessionManager.kt
 package com.example.grad_project2
 import kotlinx.coroutines.CoroutineScope
-import com.example.grad_project2.ListSessions.ListSessions.sharedTcpServer
+import com.example.grad_project2.ListSessions.ListSessions
 
 class SessionManager(
     private val scope: CoroutineScope,
@@ -13,18 +13,19 @@ class SessionManager(
         return tcpServers.map { it.port }
     }
 
-    fun createSession(port: Int, onMessageReceived: (ip: String, port: Int, message: String) -> Unit) {
-        val tcpServer = TcpServer(scope, port, onMessageReceived)
+    fun createSession(port: Int, messageListener: OnMessageReceivedListener) {
+        val tcpServer = TcpServer(scope, port, messageListener)
         tcpServers.add(tcpServer)
         tcpServer.startServer()
 
         // Store the newly created server as the shared server
-        sharedTcpServer = tcpServer
+        ListSessions.sharedTcpServer = tcpServer
     }
 
     fun stopAllSessions() {
         tcpServers.forEach { it.stopServer() }
         tcpServers.clear()
-        sharedTcpServer = null
+        ListSessions.sharedTcpServer = null
     }
 }
+
