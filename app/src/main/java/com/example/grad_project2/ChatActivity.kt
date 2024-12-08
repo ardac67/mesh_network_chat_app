@@ -1,4 +1,5 @@
 package com.example.grad_project2
+import MessageAdapter
 import android.os.Bundle
 import android.util.Log
 import android.widget.EditText
@@ -9,6 +10,12 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.grad_project2.ListSessions.ListSessions
+import java.net.InetAddress
+import java.net.NetworkInterface
+import java.text.SimpleDateFormat
+import java.util.Collections
+import java.util.Date
+import java.util.Locale
 
 
 class ChatActivity : AppCompatActivity() {
@@ -81,12 +88,17 @@ class ChatActivity : AppCompatActivity() {
                     if (!message.isNullOrEmpty()) {
                         val json = org.json.JSONObject(message)
                         val msgText = json.getString("message")
+                        val receivedTimestamp = formatTimestamp(System.currentTimeMillis())
+                        val nick = json.getString("nick")
+                        val ip = json.getString("ip")
                         Log.d("MessageCameOut", msgText)
                         val receivedMsg = Message(
                             text = msgText,
                             isSentByMe = false,
                             timestamp = System.currentTimeMillis(),
-                            type = "string"
+                            type = "string",
+                            nick= nick,
+                            ip = ip
                         )
                         if(!msgText.equals("Message received."))
                         {
@@ -129,11 +141,16 @@ class ChatActivity : AppCompatActivity() {
         sendButton.setOnClickListener {
             val text = messageEditText.text.toString().trim()
             if (text.isNotEmpty()) {
+                val timestamp = System.currentTimeMillis()
+                val formattedTimestamp = formatTimestamp(timestamp)
+
                 val newMessage = Message(
                     text = text,
                     isSentByMe = true,
-                    timestamp = System.currentTimeMillis(),
-                    type = "string"
+                    timestamp = timestamp,
+                    type = "string",
+                    ip = "",
+                    nick = getLocalIpAddress()
                 )
                 messages.add(newMessage)
                 adapter.notifyItemInserted(messages.size - 1)
@@ -163,5 +180,28 @@ class ChatActivity : AppCompatActivity() {
         if (isHost) {
             ListSessions.hostMessageListener = null
         }
+    }
+    private fun formatTimestamp(timestamp: Long): String {
+        val sdf = SimpleDateFormat("HH:mm", Locale.getDefault())
+        return sdf.format(Date(timestamp))
+    }
+    fun getLocalIpAddress(): String {
+        try {
+            val interfaces = NetworkInterface.getNetworkInterfaces()
+            for (networkInterface in Collections.list(interfaces)) {
+                val addresses = networkInterface.inetAddresses
+                for (address in Collections.list(addresses)) {
+                    if (!address.isLoopbackAddress && address is InetAddress) {
+                        val ip = address.hostAddress
+                        if (!ip.contains(":")) { // Skip IPv6
+                            return ip
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("TcpServer", "Error getting local IP address: ${e.message}")
+        }
+        return "0.0.0.0" // Default fallback
     }
 }

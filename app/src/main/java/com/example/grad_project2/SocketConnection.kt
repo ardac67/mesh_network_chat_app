@@ -6,8 +6,11 @@ import org.json.JSONObject
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.io.PrintWriter
+import java.net.InetAddress
 import java.net.InetSocketAddress
+import java.net.NetworkInterface
 import java.net.Socket
+import java.util.Collections
 
 class SocketConnection(private val scope: CoroutineScope) {
     private var outputWriter: PrintWriter? = null
@@ -86,10 +89,32 @@ class SocketConnection(private val scope: CoroutineScope) {
     fun sendMessage(text: String) {
         val json = JSONObject().apply {
             put("message", text)
+            put("nick","ardaClient")
+            put("ip",getLocalIpAddress())
         }.toString()
+
         scope.launch(Dispatchers.IO) {
             outputWriter?.println(json)
             Log.d("SocketConnection", "Sent: $json")
         }
+    }
+    fun getLocalIpAddress(): String {
+        try {
+            val interfaces = NetworkInterface.getNetworkInterfaces()
+            for (networkInterface in Collections.list(interfaces)) {
+                val addresses = networkInterface.inetAddresses
+                for (address in Collections.list(addresses)) {
+                    if (!address.isLoopbackAddress && address is InetAddress) {
+                        val ip = address.hostAddress
+                        if (!ip.contains(":")) { // Skip IPv6
+                            return ip
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("TcpServer", "Error getting local IP address: ${e.message}")
+        }
+        return "0.0.0.0" // Default fallback
     }
 }

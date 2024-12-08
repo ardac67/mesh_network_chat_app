@@ -1,19 +1,25 @@
 // TcpServer.kt
 package com.example.grad_project2
 
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.util.Log
 import kotlinx.coroutines.*
 import org.json.JSONObject
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.io.PrintWriter
+import java.net.InetAddress
+import java.net.NetworkInterface
 import java.net.ServerSocket
 import java.net.Socket
+import java.util.Collections
 
 class TcpServer(
     private val scope: CoroutineScope,
     val port: Int,
-    private val messageListener: OnMessageReceivedListener
+    private val messageListener: OnMessageReceivedListener,
 ) {
     private var serverSocket: ServerSocket? = null
     private val clients = mutableListOf<ClientConnection>()
@@ -47,10 +53,10 @@ class TcpServer(
             val writer = clientConnection.writer
 
             // Welcome message
-            val welcomeMsg = JSONObject().apply {
-                put("message", "Welcome! You are connected to the server.")
-            }.toString()
-            writer.println(welcomeMsg)
+            //val welcomeMsg = JSONObject().apply {
+                //put("message", "Welcome! You are connected to the server.")
+            //}.toString()
+            //writer.println(welcomeMsg)
 
             try {
                 var line: String? = ""
@@ -60,11 +66,15 @@ class TcpServer(
                         try {
                             val json = JSONObject(it)
                             val message = json.getString("message")
+                            val nick = json.getString("nick")
+                            val ip  = json.getString("ip")
                             val msg = Message(
                                 text = message,
                                 isSentByMe = false,
                                 timestamp = System.currentTimeMillis(),
-                                type = "string"
+                                type = "string",
+                                nick = nick,
+                                ip = ip
                             )
                             // Notify the listener (ChatActivity)
                             messageListener.onMessageReceived(msg)
@@ -72,6 +82,8 @@ class TcpServer(
                             // Optional: Send acknowledgment to the sender only
                             val response = JSONObject().apply {
                                 put("message", "Message received.")
+                                put("ip","1231")
+                                put("nick","test")
                             }.toString()
                             writer.println(response)
                         } catch (e: Exception) {
@@ -89,6 +101,18 @@ class TcpServer(
                 Log.d("TcpServer", "Client disconnected: ${client.inetAddress.hostAddress}:${client.port}")
                 clients.remove(clientConnection)
                 client.close()
+                // Notify about the disconnection
+                val disconnectionMessage = Message(
+                    text = "Client at ${client.inetAddress.hostAddress} disconnected.",
+                    isSentByMe = false,
+                    timestamp = System.currentTimeMillis(),
+                    type = "system",
+                    nick = "Server",
+                    ip = client.inetAddress.hostAddress
+                )
+                Log.d("DisconnectMessage", "Client disconnected: $disconnectionMessage")
+                messageListener.onMessageReceived(disconnectionMessage)
+
             }
         }
     }
@@ -109,10 +133,21 @@ class TcpServer(
     fun broadcastToClients(message: String) {
         val json = JSONObject().apply {
             put("message", message)
+            put("nick","ardaServer")
+            put("ip",getLocalIpAddress())
         }.toString()
         scope.launch(Dispatchers.IO) {
-            clients.forEach {
-                it.writer.println(json)
+            clients.forEach { client->
+                try {
+                    // Ensure the writer is not null and the socket is connected
+                    if (client.socket.isConnected) {
+                        client.writer.println(json)
+                    } else {
+                        Log.e("TcpServer", "Client socket is disconnected or writer is null: ${client.socket.inetAddress.hostAddress}")
+                    }
+                } catch (e: Exception) {
+                    Log.e("TcpServer", "Error broadcasting to client: ${e.message}")
+                }
             }
         }
     }
@@ -121,4 +156,24 @@ class TcpServer(
         val reader: BufferedReader = BufferedReader(InputStreamReader(socket.getInputStream()))
         val writer: PrintWriter = PrintWriter(socket.getOutputStream(), true)
     }
+    fun getLocalIpAddress(): String {
+        try {
+            val interfaces = NetworkInterface.getNetworkInterfaces()
+            for (networkInterface in Collections.list(interfaces)) {
+                val addresses = networkInterface.inetAddresses
+                for (address in Collections.list(addresses)) {
+                    if (!address.isLoopbackAddress && address is InetAddress) {
+                        val ip = address.hostAddress
+                        if (!ip.contains(":")) { // Skip IPv6
+                            return ip
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("TcpServer", "Error getting local IP address: ${e.message}")
+        }
+        return "0.0.0.0" // Default fallback
+    }
+
 }

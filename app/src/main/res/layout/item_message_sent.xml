@@ -6,15 +6,26 @@
     android:gravity="end"
     android:padding="8dp">
 
+    <!-- Header: Nickname and IP -->
+
+
     <!-- Message Bubble -->
     <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:background="@drawable/incoming_message_bubble"
+        android:background="@drawable/incoming_message_bubble2"
         android:padding="12dp"
         android:orientation="vertical"
         android:elevation="2dp">
-
+        <TextView
+            android:id="@+id/sentHeaderTextView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="@android:color/holo_blue_light"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="4dp"
+            android:text="~You 192.168.1.2" />
         <!-- Message Text -->
         <TextView
             android:id="@+id/sentMessageTextView"
@@ -24,7 +35,7 @@
             android:textSize="16sp"
             android:maxWidth="250dp" />
 
-        <!-- Timestamp and Double-Check Icon -->
+        <!-- Timestamp -->
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -33,14 +44,13 @@
             android:gravity="end">
 
             <TextView
-                android:id="@+id/timestampTextView"
+                android:id="@+id/sentTimestampTextView"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:textColor="@android:color/darker_gray"
                 android:textSize="12sp"
                 android:text="15:03"
                 android:layout_marginEnd="4dp" />
-
         </LinearLayout>
     </LinearLayout>
 </LinearLayout>

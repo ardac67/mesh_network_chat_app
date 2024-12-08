@@ -4,5 +4,7 @@ data class Message(
     val text: String,
     val isSentByMe: Boolean,
     val timestamp: Long,
-    val type: String // "string" for text messages
+    val type: String,
+    val nick: String,
+    val ip: String
 )
