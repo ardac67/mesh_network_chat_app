@@ -25,7 +25,8 @@
             android:layout_height="match_parent"
             android:scaleType="centerCrop"
             android:background="@drawable/face"
-            tools:ignore="ContentDescription" />
+            tools:ignore="ContentDescription"
+            android:clickable="true"/>
 
         <!-- Online Indicator -->
         <View

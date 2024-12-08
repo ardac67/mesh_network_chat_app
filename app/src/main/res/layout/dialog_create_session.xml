@@ -89,6 +89,18 @@
             app:cornerRadius="24dp"
             android:gravity="center"
             android:elevation="4dp" />
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/joinSession"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Join Session"
+            app:backgroundTint="@color/primary"
+            android:textColor="@color/white"
+            android:paddingVertical="14dp"
+            android:fontFamily="sans-serif-medium"
+            app:cornerRadius="24dp"
+            android:gravity="center"
+            android:elevation="4dp" />
 
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>
