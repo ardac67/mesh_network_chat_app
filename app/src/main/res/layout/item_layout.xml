@@ -1,32 +1,83 @@
-<?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:padding="8dp"
-    android:background="@drawable/recycler_border"
-    tools:ignore="HardcodedText">
+    android:layout_margin="8dp"
+    app:cardCornerRadius="16dp"
+    app:cardElevation="8dp"
+    android:foreground="?attr/selectableItemBackground"
+    android:clickable="true"
+    android:focusable="true">
 
-    <!-- Avatar with Online Status -->
-    <FrameLayout
-        android:id="@+id/avatarContainer"
-        android:layout_width="70dp"
-        android:layout_height="70dp"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent">
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="16dp">
 
-        <!-- Avatar Image -->
+        <!-- Chat Details (Session Name, IP/Port, Last Unread Message) -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginEnd="8dp"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/connectSocketImage">
+
+            <!-- Chat Session Name -->
+            <TextView
+                android:id="@+id/chatTitleTextView"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Chat Session Name"
+                android:textSize="18sp"
+                android:textColor="@color/black"
+                android:textStyle="bold" />
+
+            <!-- IP and Port -->
+            <TextView
+                android:id="@+id/chatSubtitleTextView"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="IP: 192.168.0.1 - Port: 8080"
+                android:textSize="14sp"
+                android:textColor="@color/gray" />
+
+            <!-- Last Unread Message -->
+            <TextView
+                android:id="@+id/lastMessageLabel"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Last message preview..."
+                android:textSize="14sp"
+                android:textColor="@color/gray"
+                android:ellipsize="end"
+                android:singleLine="true"
+                android:layout_marginTop="4dp" />
+        </LinearLayout>
+
+        <!-- Time -->
+        <TextView
+            android:id="@+id/timeTextView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="10:30 AM"
+            android:textSize="12sp"
+            android:textColor="@color/gray"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            android:layout_marginTop="8dp" />
+
+        <!-- Connect Button -->
         <ImageView
-            android:id="@+id/material_clock_face"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:scaleType="centerCrop"
-            android:background="@drawable/face"
-            tools:ignore="ContentDescription"
-            android:clickable="true"/>
+            android:id="@+id/connectSocketImage"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@drawable/podcasts_connect"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/timeTextView"
+            android:layout_marginTop="8dp" />
 
         <!-- Online Indicator -->
         <View
@@ -34,100 +85,8 @@
             android:layout_width="12dp"
             android:layout_height="12dp"
             android:background="@drawable/circle_background_green"
-            android:layout_gravity="bottom|end"
-            android:layout_margin="6dp" />
-    </FrameLayout>
-
-    <!-- Title and Subtitle -->
-    <LinearLayout
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        app:layout_constraintStart_toEndOf="@id/avatarContainer"
-        app:layout_constraintEnd_toStartOf="@id/timeTextView"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent"
-        android:paddingStart="8dp"
-        android:paddingEnd="8dp">
-
-        <!-- Title -->
-        <TextView
-            android:id="@+id/chatTitleTextView"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="“Legend”..."
-            android:textSize="16sp"
-            android:textStyle="bold"
-            android:ellipsize="end"
-            android:maxLines="1"
-            android:textColor="@android:color/black" />
-
-        <!-- Subtitle -->
-        <TextView
-            android:id="@+id/chatSubtitleTextView"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Of course, we just added that to..."
-            android:textSize="14sp"
-            android:ellipsize="end"
-            android:maxLines="1"
-            android:textColor="@android:color/black" />
-    </LinearLayout>
-
-    <!-- Timestamp and Badge Layout -->
-    <LinearLayout
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        app:layout_constraintStart_toStartOf="@id/parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent"
-        android:gravity="end"
-        android:paddingEnd="8dp">
-
-        <!-- Horizontal LinearLayout for the two TextViews -->
-        <LinearLayout
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical">
-
-            <!-- Time TextView -->
-            <TextView
-                android:id="@+id/timeTextView"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:paddingEnd="8dp"
-                android:text="3:40 PM"
-                android:textColor="@android:color/black"
-                android:textSize="12sp" />
-
-            <!-- Unread Badge TextView -->
-            <TextView
-                android:id="@+id/unreadBadgeTextView"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:background="@drawable/circle_background_blue"
-                android:gravity="center"
-                android:text="0"
-                android:textColor="@android:color/white"
-                android:textSize="12sp"
-                android:visibility="visible"
-                android:layout_marginStart="8dp" />
-        </LinearLayout>
-
-        <!-- Button Below -->
-
-        <ImageView
-            android:id="@+id/connectSocketImage"
-            android:layout_width="56dp"
-            android:layout_height="56dp"
-            android:layout_marginEnd="8dp"
-            android:contentDescription="Door Icon"
-            android:clickable="true"
-            app:srcCompat="@drawable/podcasts_connect"
-            />
-    </LinearLayout>
-
-</androidx.constraintlayout.widget.ConstraintLayout>
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/connectSocketImage"
+            android:layout_marginTop="8dp" />
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</com.google.android.material.card.MaterialCardView>

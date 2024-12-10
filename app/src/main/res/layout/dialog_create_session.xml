@@ -1,20 +1,21 @@
-<?xml version="1.0" encoding="utf-8"?>
 <com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/modalCardView"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_margin="16dp"
-    app:cardCornerRadius="20dp"
-    app:cardElevation="12dp"
+    app:cardCornerRadius="24dp"
+    app:cardElevation="16dp"
     app:cardBackgroundColor="@color/white"
-    android:background="@drawable/modal_background"
-    android:padding="24dp">
+    android:padding="24dp"
+    android:clipToPadding="false"
+    android:clipChildren="false">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical">
+        android:orientation="vertical"
+        android:padding="8dp">
 
         <!-- Modal Title with Icon -->
         <LinearLayout
@@ -22,12 +23,12 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:gravity="center_vertical"
-            android:paddingBottom="16dp">
+            android:paddingBottom="24dp">
 
             <ImageView
                 android:id="@+id/modalIcon"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
                 android:src="@drawable/message_icon"
                 android:contentDescription="Modal Icon"
                 app:tint="@color/primary" />
@@ -36,13 +37,34 @@
                 android:id="@+id/modalTitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Create a Session"
-                android:textSize="22sp"
+                android:text="Create or Join a Session"
+                android:textSize="24sp"
                 android:textStyle="bold"
                 android:textColor="@color/black"
                 android:paddingStart="12dp"
                 android:fontFamily="sans-serif-medium" />
         </LinearLayout>
+
+        <!-- Session Name Input -->
+        <com.google.android.material.textfield.TextInputLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Session Name"
+            app:endIconMode="clear_text"
+            app:hintTextColor="@color/gray"
+            android:layout_marginBottom="16dp"
+            app:boxBackgroundMode="outline"
+            app:boxCornerRadiusTopStart="12dp"
+            app:boxCornerRadiusBottomEnd="12dp"
+            app:boxStrokeColor="@color/primary">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/sessionNameEditText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="text"
+                android:singleLine="true" />
+        </com.google.android.material.textfield.TextInputLayout>
 
         <!-- IP Address Input -->
         <com.google.android.material.textfield.TextInputLayout
@@ -50,7 +72,12 @@
             android:layout_height="wrap_content"
             android:hint="IP Address"
             app:endIconMode="clear_text"
-            android:paddingBottom="16dp">
+            app:hintTextColor="@color/gray"
+            android:layout_marginBottom="16dp"
+            app:boxBackgroundMode="outline"
+            app:boxCornerRadiusTopStart="12dp"
+            app:boxCornerRadiusBottomEnd="12dp"
+            app:boxStrokeColor="@color/primary">
 
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/ipEditText"
@@ -66,7 +93,12 @@
             android:layout_height="wrap_content"
             android:hint="Port"
             app:endIconMode="clear_text"
-            android:paddingBottom="24dp">
+            app:hintTextColor="@color/gray"
+            android:layout_marginBottom="24dp"
+            app:boxBackgroundMode="outline"
+            app:boxCornerRadiusTopStart="12dp"
+            app:boxCornerRadiusBottomEnd="12dp"
+            app:boxStrokeColor="@color/primary">
 
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/portEditText"
@@ -76,31 +108,42 @@
                 android:singleLine="true" />
         </com.google.android.material.textfield.TextInputLayout>
 
-        <!-- Create Session Button -->
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/createSessionButton"
+        <!-- Buttons Section -->
+        <!-- Buttons Section -->
+        <!-- Buttons Section -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Create Session"
-            app:backgroundTint="@color/primary"
-            android:textColor="@color/white"
-            android:paddingVertical="14dp"
-            android:fontFamily="sans-serif-medium"
-            app:cornerRadius="24dp"
+            android:orientation="vertical"
             android:gravity="center"
-            android:elevation="4dp" />
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/joinSession"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Join Session"
-            app:backgroundTint="@color/primary"
-            android:textColor="@color/white"
-            android:paddingVertical="14dp"
-            android:fontFamily="sans-serif-medium"
-            app:cornerRadius="24dp"
-            android:gravity="center"
-            android:elevation="4dp" />
+            android:layout_marginTop="16dp">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/createSessionButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Create Session"
+                app:backgroundTint="@color/primary"
+                android:textColor="@color/white"
+                android:paddingVertical="12dp"
+                android:layout_marginBottom="12dp"
+                android:fontFamily="sans-serif-medium"
+                app:cornerRadius="12dp"
+                android:elevation="4dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/joinSession"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Join Session"
+                app:backgroundTint="@color/secondary"
+                android:textColor="@color/white"
+                android:paddingVertical="12dp"
+                android:fontFamily="sans-serif-medium"
+                app:cornerRadius="12dp"
+                android:elevation="4dp" />
+        </LinearLayout>
+
 
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

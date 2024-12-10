@@ -72,6 +72,12 @@ class MessageAdapter(private val messages: List<Message>) : RecyclerView.Adapter
         fun bind(message: Message) {
             messageTextView.text = message.text
             timestampTextView.text = formatTimestamp(message.timestamp)
+            headerTextView.text = buildString {
+                append("~")
+                append(message.nick)
+                append(" ")
+                append(message.ip)
+            }
         }
         private fun formatTimestamp(timestamp: Long): String {
             val sdf = SimpleDateFormat("HH:mm", Locale.getDefault())

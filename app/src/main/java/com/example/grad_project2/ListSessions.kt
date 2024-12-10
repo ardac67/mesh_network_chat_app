@@ -11,9 +11,11 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Bundle
 import android.util.Log
+import android.view.LayoutInflater
 import android.view.View
 import android.view.WindowManager
 import android.widget.Button
+import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.ProgressBar
 import android.widget.Toast
@@ -22,10 +24,16 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.grad_project2.ListSessions.ListSessions.sharedSocketConnection
+import com.example.grad_project2.ListSessions.ListSessions.username
+import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.textfield.TextInputEditText
+import org.json.JSONObject
 import java.net.InetAddress
 import java.net.NetworkInterface
+import java.text.SimpleDateFormat
 import java.util.Collections
+import java.util.Date
+import java.util.Locale
 import java.util.UUID
 
 
@@ -38,6 +46,7 @@ class ListSessions : AppCompatActivity() {
 
         // Callback for the host to receive messages
         var hostMessageListener: OnMessageReceivedListener? = null
+        var username:String = ""
     }
 
     private lateinit var recyclerView: RecyclerView
@@ -48,11 +57,16 @@ class ListSessions : AppCompatActivity() {
     private lateinit var deviceId: String
     private lateinit var sessionManager: SessionManager
     private lateinit var socketConnection: SocketConnection
+    private lateinit var userPreferences: UserPreferences
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_list_sessions)
-
+        val editIcon = findViewById<View>(R.id.editIcon)
+        editIcon.setOnClickListener {
+            showSettingsModal()
+        }
+        userPreferences = UserPreferences(this)
         deviceId = getDeviceIdm()
         Log.d("ListSessionsActivity", "Device ID: $deviceId")
 
@@ -89,7 +103,19 @@ class ListSessions : AppCompatActivity() {
                             port = item.port,
                             connectTimeoutMillis = 5000,
                             onMessageReceived = { message ->
-                                // Not handling messages here, handle in ChatActivity
+                                if (!message.isNullOrEmpty()) {
+                                    val sessionIndex = items.indexOfFirst { it.ip == item.ip && it.port == item.port }
+                                    val json = JSONObject(message)
+                                    val parsed = json.getString("message")
+                                    //val time = json.getString("time")
+                                    if (sessionIndex != -1) {
+                                        runOnUiThread {
+                                            items[sessionIndex].lastMessage = parsed // Update the last message
+                                            items[sessionIndex].time = formatTimestamp(System.currentTimeMillis())
+                                            adapter.notifyItemChanged(sessionIndex) // Notify the adapter
+                                        }
+                                    }
+                                }
                             },
                             onSubscriptionSuccess = {
                                 runOnUiThread {
@@ -139,7 +165,7 @@ class ListSessions : AppCompatActivity() {
         val connectClientButton = dialog.findViewById<Button>(R.id.joinSession)
         val ipEditText = dialog.findViewById<TextInputEditText>(R.id.ipEditText)
         val portEditText = dialog.findViewById<TextInputEditText>(R.id.portEditText)
-
+        val sessionName = dialog.findViewById<TextInputEditText>(R.id.sessionNameEditText)
         // Pre-fill IP with host's local IP
         ipEditText.setText(localIPAddress)
         ipEditText.isEnabled = true
@@ -170,7 +196,7 @@ class ListSessions : AppCompatActivity() {
 
             sessionManager.createSession(port, messageListener)
 
-            val newSession = ChatGlobal(ip = ip, port = port, isHostMe = true)
+            val newSession = ChatGlobal(ip = ip, port = port, isHostMe = true, sessionName = sessionName.text.toString())
             items.add(newSession)
             adapter.notifyItemInserted(items.size - 1)
 
@@ -196,7 +222,7 @@ class ListSessions : AppCompatActivity() {
                 return@setOnClickListener
             }
 
-            val newSession = ChatGlobal(ip = ip, port = port, isHostMe = (ip == localIPAddress))
+            val newSession = ChatGlobal(ip = ip, port = port, isHostMe = (ip == localIPAddress),sessionName = sessionName.text.toString())
             items.add(newSession)
             adapter.notifyItemInserted(items.size - 1)
             Toast.makeText(this, "Session Added: $ip:$port. Click it to connect.", Toast.LENGTH_SHORT).show()
@@ -275,5 +301,33 @@ class ListSessions : AppCompatActivity() {
             Log.e("Utility", "Error getting IP from interface $interfaceName: ${e.message}")
         }
         return null
+    }
+    private fun showSettingsModal() {
+        val bottomSheetDialog = BottomSheetDialog(this)
+        val view = LayoutInflater.from(this).inflate(R.layout.bottom_sheet_dialog, null)
+
+        val usernameInput = view.findViewById<EditText>(R.id.usernameInput)
+        val saveButton = view.findViewById<Button>(R.id.saveButton)
+
+        // Pre-fill username if exists
+        usernameInput.setText(userPreferences.getUsername())
+
+        saveButton.setOnClickListener {
+            val newUsername = usernameInput.text.toString()
+            if (newUsername.isNotEmpty()) {
+                userPreferences.setUsername(newUsername)
+                username = newUsername
+                bottomSheetDialog.dismiss()
+            } else {
+                usernameInput.error = "Username cannot be empty"
+            }
+        }
+
+        bottomSheetDialog.setContentView(view)
+        bottomSheetDialog.show()
+    }
+    private fun formatTimestamp(timestamp: Long): String {
+        val sdf = SimpleDateFormat("HH:mm", Locale.getDefault())
+        return sdf.format(Date(timestamp))
     }
 }

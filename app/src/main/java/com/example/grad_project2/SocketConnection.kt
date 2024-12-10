@@ -89,13 +89,13 @@ class SocketConnection(private val scope: CoroutineScope) {
     fun sendMessage(text: String) {
         val json = JSONObject().apply {
             put("message", text)
-            put("nick","ardaClient")
+            put("nick",ListSessions.ListSessions.username)
             put("ip",getLocalIpAddress())
         }.toString()
 
         scope.launch(Dispatchers.IO) {
             outputWriter?.println(json)
-            Log.d("SocketConnection", "Sent: $json")
+            Log.d("TcpServer", "Sent: $json")
         }
     }
     fun getLocalIpAddress(): String {

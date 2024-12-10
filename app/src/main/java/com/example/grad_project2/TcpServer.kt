@@ -133,7 +133,7 @@ class TcpServer(
     fun broadcastToClients(message: String) {
         val json = JSONObject().apply {
             put("message", message)
-            put("nick","ardaServer")
+            put("nick",ListSessions.ListSessions.username)
             put("ip",getLocalIpAddress())
         }.toString()
         scope.launch(Dispatchers.IO) {

@@ -21,8 +21,8 @@ class ChatItemAdapter(
     class MyViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val titleTextView: TextView = itemView.findViewById(R.id.chatTitleTextView)
         val descriptionTextView: TextView = itemView.findViewById(R.id.chatSubtitleTextView)
-        val unreadMessages: TextView = itemView.findViewById(R.id.unreadBadgeTextView)
         val timeSend: TextView = itemView.findViewById(R.id.timeTextView)
+        val lastMessage : TextView = itemView.findViewById(R.id.lastMessageLabel)
     }
 
     // Inflate the item layout and create ViewHolder
@@ -38,26 +38,34 @@ class ChatItemAdapter(
         Log.d("Adapter", "Binding position: $position with IP: ${item.ip}")
 
         // Display "IP - Port" in the title
-        holder.titleTextView.text = "${item.ip} - ${item.port}"
+        if(item.sessionName.isNullOrEmpty()){
+            holder.titleTextView.text = "${item.ip} - ${item.port}"
+        }
+        holder.titleTextView.text = "Chat Session Name- "+item.sessionName
         holder.descriptionTextView.text = ""
-        holder.unreadMessages.text = item.unreadMessages.toString()
         holder.timeSend.text = item.time
-
+        if(item.isHostMe){
+            holder.descriptionTextView.text = "${item.ip} - ${item.port} - You are the Host"
+        }
+        else{
+            holder.descriptionTextView.text = "${item.ip} - ${item.port}"
+        }
+        holder.lastMessage.text = item.lastMessage ?: "No messages yet"
         // Set background based on subscription state
         if (item.isHostMe) {
-            holder.itemView.setBackground(ContextCompat.getDrawable(context, R.drawable.gradient_background))
+            //holder.itemView.setBackground(ContextCompat.getDrawable(context, R.drawable.gradient_background))
             val onlineIndicator = holder.itemView.findViewById<View>(R.id.onlineIndicator)
             onlineIndicator.setBackground(ContextCompat.getDrawable(context, R.drawable.circle_background_green))
             val connectSocketImage = holder.itemView.findViewById<View>(R.id.connectSocketImage)
-            connectSocketImage.isClickable = false
-            connectSocketImage.alpha = 0.5f
+            connectSocketImage.isClickable = true
+            //connectSocketImage.alpha = 0.5f
         }
-        if (item.isSubscribed) {
-            holder.itemView.setBackground(ContextCompat.getDrawable(context, R.drawable.gradient_background))
+        else if (item.isSubscribed) {
+            //holder.itemView.setBackground(ContextCompat.getDrawable(context, R.drawable.gradient_background))
             val onlineIndicator = holder.itemView.findViewById<View>(R.id.onlineIndicator)
             onlineIndicator.setBackground(ContextCompat.getDrawable(context, R.drawable.circle_background_green))
         } else {
-            holder.itemView.setBackground(ContextCompat.getDrawable(context, R.drawable.not_clicked_session))
+            //holder.itemView.setBackground(ContextCompat.getDrawable(context, R.drawable.not_clicked_session))
             val onlineIndicator = holder.itemView.findViewById<View>(R.id.onlineIndicator)
             onlineIndicator.setBackground(ContextCompat.getDrawable(context, R.drawable.circle_bacground))
         }

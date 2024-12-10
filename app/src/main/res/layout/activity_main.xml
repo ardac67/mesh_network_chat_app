@@ -6,19 +6,19 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/gradient_background"
-    tools:context=".MainActivity"
-    tools:ignore="HardcodedText">
+    tools:context=".MainActivity">
 
-    <!-- Logo Image -->
+    <!-- Logo -->
     <ImageView
         android:id="@+id/logoImageView"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_width="96dp"
+        android:layout_height="96dp"
         app:srcCompat="@drawable/approved_chat_app_icon_vector_28873697"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginTop="32dp" />
+        android:layout_marginTop="32dp"
+        android:contentDescription="App Logo" />
 
     <!-- Title -->
     <TextView
@@ -28,7 +28,7 @@
         android:layout_marginTop="16dp"
         android:text="Welcome to Local Stream Chat"
         android:textColor="@android:color/black"
-        android:textSize="24sp"
+        android:textSize="22sp"
         android:textStyle="bold"
         app:layout_constraintTop_toBottomOf="@id/logoImageView"
         app:layout_constraintStart_toStartOf="parent"
@@ -40,21 +40,22 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
-        android:text="Select an option to try the Local Chat App:"
+        android:text="Choose an option to get started"
         android:textColor="@android:color/black"
         android:textSize="16sp"
+        android:fontFamily="sans-serif-medium"
         app:layout_constraintTop_toBottomOf="@id/titleTextView"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
-    <!-- CardView for Start Chat Option -->
+    <!-- Wi-Fi Settings Card -->
     <androidx.cardview.widget.CardView
         android:id="@+id/startChatCard"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_margin="16dp"
-        app:cardCornerRadius="16dp"
-        app:cardElevation="8dp"
+        app:cardCornerRadius="12dp"
+        app:cardElevation="6dp"
         app:layout_constraintTop_toBottomOf="@id/subtitleTextView"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
@@ -63,23 +64,18 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:padding="16dp"
-            android:gravity="center_vertical"
-            android:background="@drawable/gradient_background"
-            >
+            android:padding="16dp">
 
-            <!-- Wi-Fi Icon -->
             <ImageView
                 android:id="@+id/wifiIcon"
-                android:layout_width="56dp"
-                android:layout_height="56dp"
-                android:layout_marginEnd="8dp"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_marginEnd="16dp"
                 android:contentDescription="Wi-Fi Icon"
                 app:srcCompat="@drawable/baseline_wifi_24" />
 
-            <!-- Vertical Layout for Texts -->
             <LinearLayout
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:orientation="vertical">
@@ -92,75 +88,34 @@
                     android:textSize="18sp"
                     android:textStyle="bold" />
 
-                <LinearLayout
+                <TextView
+                    android:id="@+id/textWifiName"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Wi-Fi Status :"
-                        android:textColor="@android:color/black"
-                        android:textSize="16sp"
-                        android:textStyle="bold"/>
-
-                    <CheckBox
-                        android:id="@+id/wifiCheckBox"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="8dp"
-                        android:checked="false"
-                        android:enabled="false"
-                        android:text="" />
-
-                </LinearLayout>
-
+                    android:text="Manage your Wi-Fi status"
+                    android:textColor="@android:color/black"
+                    android:textSize="14sp" />
             </LinearLayout>
-            <ImageView
-                android:id="@+id/wifiButtonLikeImage"
-                android:layout_width="56dp"
-                android:layout_height="56dp"
-                android:layout_marginEnd="8dp"
-                android:contentDescription="Wi-Fi Icon"
-                android:clickable="true"
-                app:srcCompat="@drawable/baseline_arrow_forward_24" />
-            <!-- Connect Button -->
+
+            <CheckBox
+                android:id="@+id/wifiCheckBox"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:checked="false"
+                android:enabled="false"
+                android:layout_marginStart="16dp" />
         </LinearLayout>
-
     </androidx.cardview.widget.CardView>
-    <LinearLayout
-        android:id="@+id/expandableLayout"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        app:layout_constraintTop_toBottomOf="@id/startChatCard"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:layout_margin="16dp"
-        android:paddingTop="8dp"
-        android:visibility="gone"
-        android:gravity="center"> <!-- Center content both horizontally and vertically -->
 
-        <TextView
-            android:id="@+id/expandedDetails"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="There are 7 chat sessions available in host!"
-            android:textSize="16sp"
-            android:textColor="@android:color/black"
-            android:gravity="center" /> <!-- Center text within TextView -->
-    </LinearLayout>
-
+    <!-- Hotspot Settings Card -->
     <androidx.cardview.widget.CardView
         android:id="@+id/startChatCard1"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_margin="16dp"
-        app:cardCornerRadius="16dp"
-        app:cardElevation="8dp"
-        app:layout_constraintTop_toBottomOf="@id/expandableLayout"
+        app:cardCornerRadius="12dp"
+        app:cardElevation="6dp"
+        app:layout_constraintTop_toBottomOf="@id/startChatCard"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
@@ -168,28 +123,21 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:padding="16dp"
-            android:gravity="center_vertical"
-            android:background="@drawable/gradient_background"
-            >
+            android:padding="16dp">
 
-            <!-- Wi-Fi Icon -->
             <ImageView
                 android:id="@+id/hotSpotIcon"
-                android:layout_width="56dp"
-                android:layout_height="56dp"
-                android:layout_marginEnd="8dp"
-                android:contentDescription="Hotspot-Icon"
-                app:srcCompat="@drawable/baseline_4g_plus_mobiledata_24"
-                tools:ignore="HardcodedText" />
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_marginEnd="16dp"
+                android:contentDescription="Hotspot Icon"
+                app:srcCompat="@drawable/baseline_4g_plus_mobiledata_24" />
 
-            <!-- Vertical Layout for Texts -->
             <LinearLayout
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:orientation="vertical"
-                tools:ignore="InefficientWeight">
+                android:orientation="vertical">
 
                 <TextView
                     android:layout_width="wrap_content"
@@ -197,126 +145,41 @@
                     android:text="Hotspot Settings"
                     android:textColor="@android:color/black"
                     android:textSize="18sp"
-                    android:textStyle="bold"
-                    tools:ignore="HardcodedText" />
+                    android:textStyle="bold" />
 
-                <LinearLayout
+                <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Hotspot Status :"
-                        android:textColor="@android:color/black"
-                        android:textSize="16sp"
-                        android:textStyle="bold"/>
-
-                    <CheckBox
-                        android:id="@+id/hotSpotCheckBox"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="8dp"
-                        android:checked="false"
-                        android:enabled="false"
-                        android:text="" />
-
-                </LinearLayout>
-
+                    android:text="Set up your hotspot preferences"
+                    android:textColor="@android:color/black"
+                    android:textSize="14sp" />
             </LinearLayout>
-            <ImageView
-                android:id="@+id/wifiButtonLikeImageHotspot"
-                android:layout_width="56dp"
-                android:layout_height="56dp"
-                android:layout_marginEnd="8dp"
-                android:clickable="true"
-                android:contentDescription="TODO"
-                app:srcCompat="@drawable/baseline_arrow_forward_24"
-                />
-        </LinearLayout>
-
-    </androidx.cardview.widget.CardView>
-    <LinearLayout
-        android:id="@+id/expandableLayoutHotspot"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        app:layout_constraintTop_toBottomOf="@id/startChatCard1"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:layout_margin="16dp"
-        android:padding="16dp"
-        android:visibility="gone"
-        android:gravity="center"> <!-- Center content both horizontally and vertically -->
-
-        <!-- Checkbox for Password Required -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:layout_marginBottom="16dp">
 
             <CheckBox
-                android:id="@+id/passwordRequiredCheckbox"
+                android:id="@+id/hotSpotCheckBox"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Password Required"
-                android:textColor="@android:color/black"
-                android:textSize="14sp" />
+                android:checked="false"
+                android:enabled="false"
+                android:layout_marginStart="16dp" />
         </LinearLayout>
+    </androidx.cardview.widget.CardView>
 
-        <!-- Password Input -->
-        <EditText
-            android:id="@+id/passwordInput"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="Enter password"
-            android:inputType="textPassword"
-            android:visibility="gone"
-            android:padding="12dp"
-            android:background="@drawable/textbox_background"
-            android:layout_marginBottom="16dp"
-            android:textColor="@android:color/black"
-            android:textSize="14sp"
-            tools:ignore="Autofill" />
-
-        <!-- Button to Generate Hotspot Configuration -->
-        <Button
-            android:id="@+id/generateHotspotButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Generate Hotspot Configuration"
-            android:backgroundTint="#81C784"
-            android:textColor="@android:color/white"
-            android:textSize="16sp"
-            android:layout_marginTop="8dp"
-            android:layout_marginBottom="8dp"
-            android:padding="12dp" />
-
-    </LinearLayout>
-    <LinearLayout
+    <Button
+        android:id="@+id/listSessionButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
         android:layout_margin="16dp"
-        android:padding="20dp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent">
+        android:layout_marginTop="24dp"
+        android:text="List Sessions"
+        android:backgroundTint="#81C784"
+        android:textColor="@android:color/white"
+        android:textSize="16sp"
+        app:layout_constraintTop_toBottomOf="@id/startChatCard1"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
 
-        <Button
-            android:id="@+id/listSessionButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:backgroundTint="#81C784"
-            android:padding="12dp"
-            android:text="List Sessions"
-            android:textColor="@android:color/white"
-            android:textSize="16sp" />
-    </LinearLayout>
+    <!-- Footer Button -->
 
 
 </androidx.constraintlayout.widget.ConstraintLayout>

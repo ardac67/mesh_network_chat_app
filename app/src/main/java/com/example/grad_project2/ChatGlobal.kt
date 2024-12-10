@@ -9,5 +9,7 @@ data class ChatGlobal(
     var subscriptionJob: Job? = null, // Tracks the subscription coroutine
     var unreadMessages: Int = 0,
     var time: String = "Unknown",
-    var isHostMe: Boolean = false
+    var isHostMe: Boolean = false,
+    var sessionName: String = "",
+    var lastMessage: String? = null,
 )

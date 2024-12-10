@@ -42,52 +42,8 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
         initializeReceiver()
         checkAndRequestPermissions()
-        //val connection = SocketConnection()
-        //connection.serverConnectionTest("192.168.56.1", 8080)
-        //connection.serverConnectionTest("192.168.137.1", 8080)
-        //connection.serverConnectionTest("192.168.1.200",8080)
-        //connection.listenForBroadcasts()
-        val wifiSettingsButton = binding.wifiButtonLikeImage
-        val expandedExample = binding.expandableLayout
-           wifiSettingsButton.setOnClickListener{
-               //val intent = Intent(this,WifiSettingsActivity::class.java)
-               //startActivity(intent)
-               if(expandedExample.visibility == View.VISIBLE ){
-                   expandedExample.visibility = View.GONE
-               }
-               else{
-                   expandedExample.visibility = View.VISIBLE
-               }
-            }
-        val hotspotSettingsButton = binding.wifiButtonLikeImageHotspot
-        val expandableLayoutHotspot = binding.expandableLayoutHotspot
-        hotspotSettingsButton.setOnClickListener{
-            //val intent = Intent(this,WifiSettingsActivity::class.java)
-            //startActivity(intent)
-            if(expandableLayoutHotspot.visibility == View.VISIBLE ){
-                expandableLayoutHotspot.visibility = View.GONE
-            }
-            else{
-                expandableLayoutHotspot.visibility = View.VISIBLE
-            }
-        }
-        val checkbox = binding.passwordRequiredCheckbox;
-        val passwordInput = binding.passwordInput;
-        val generateButton = binding.generateHotspotButton;
-
-        checkbox.setOnCheckedChangeListener { _, isChecked ->
-            if (isChecked) {
-                passwordInput.visibility = View.VISIBLE
-            } else {
-                passwordInput.visibility = View.GONE
-            }
-        }
-
-        generateButton.setOnClickListener {
-            val password = if (passwordInput.visibility == View.VISIBLE) passwordInput.text.toString() else "No Password"
-            Toast.makeText(this, "Hotspot Config: Password = $password", Toast.LENGTH_SHORT).show()
-        }
         val chatSessionList = binding.listSessionButton
+        val wifiName = binding.textWifiName
         chatSessionList.setOnClickListener {
             val intent = Intent(this, ListSessions::class.java)
             startActivity(intent)
@@ -123,14 +79,16 @@ class MainActivity : AppCompatActivity() {
                     Log.d("zbam","zbam")
                     val wifiCheckBox = binding.wifiCheckBox
                     wifiCheckBox.isChecked = true
-                    wifiCheckBox.text = connectionInfo.ssid.substring(0,5)
+                    //wifiCheckBox.text = connectionInfo.ssid.substring(0,5)
+                    binding.textWifiName.text = connectionInfo.ssid
                 }
 
             }
             else{
                 val wifiCheckBox = findViewById<CheckBox>(R.id.wifiCheckBox)
                 wifiCheckBox.isChecked = false
-                wifiCheckBox.text = "No Connection!"
+                //wifiCheckBox.text = "No Connection!"
+                binding.textWifiName.text = "No Connection!"
             }
         }
     }
@@ -150,11 +108,13 @@ class MainActivity : AppCompatActivity() {
             if (wifiInfo != null && wifiInfo.supplicantState == SupplicantState.COMPLETED) {
                 val ssid = wifiInfo.ssid.replace("\"", "")  // Removing extra quotes around SSID
                 wifiCheckBox.isChecked = true
-                wifiCheckBox.text = ssid
+                //wifiCheckBox.text = ssid
+                binding.textWifiName.text = ssid
                 Toast.makeText(this, "Connected to $ssid", Toast.LENGTH_SHORT).show()
             } else {
                 wifiCheckBox.isChecked = false
-                wifiCheckBox.text = "No Connection"
+                //wifiCheckBox.text = "No Connection"
+                binding.textWifiName.text = "No Connection"
                 Toast.makeText(this, "No Wi-Fi connection", Toast.LENGTH_SHORT).show()
             }
         }
@@ -189,20 +149,12 @@ class MainActivity : AppCompatActivity() {
                         Toast.makeText(context, "Connected to Wi-Fi", Toast.LENGTH_SHORT).show()
                         Log.d("Arda","Arda")
                         checkAndRequestPermissions()
-                        //val sockConnection = SocketConnection();
-                        //val devices = sockConnection.discoverDevices("192.168.1")
-                        //sockConnection.discoverAndScan("192.168.1", 1..1024)
-                        //Log.d("Found_Devices","$devices")
-                        //Log.d("malaktepe","malaktepe")
-                        //val ip = "192.168.1.101"
-                        //val openPorts = sockConnection.scanPorts(ip, 1..1024) // Scans ports 1 to 1024
-                        //Log.d("Open:","$ip: $openPorts")
-
                     } else {
                         // Disconnected from Wi-Fi
                         //Toast.makeText(context, "Disconnected from Wi-Fi", Toast.LENGTH_SHORT).show()
                         binding.wifiCheckBox.isChecked = false
-                        binding.wifiCheckBox.text ="No Connection"
+                        //binding.wifiCheckBox.text ="No Connection"
+                        binding.textWifiName.text = "No Connection"
                     }
                 }
             }

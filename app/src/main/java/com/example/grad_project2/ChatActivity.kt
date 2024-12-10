@@ -128,6 +128,7 @@ class ChatActivity : AppCompatActivity() {
             // Host logic: Set up callback to receive messages
             ListSessions.hostMessageListener = object : OnMessageReceivedListener {
                 override fun onMessageReceived(message: Message) {
+                    Log.d("messagemal","$message")
                     runOnUiThread {
                         messages.add(message)
                         adapter.notifyItemInserted(messages.size - 1)
