@@ -13,78 +13,38 @@ import androidx.recyclerview.widget.RecyclerView
 class ChatItemAdapter(
     private val context: Context,
     private val itemList: MutableList<ChatGlobal>,
-    private val socketConnection: SocketConnection,
-    private val listener: OnSessionClickListener // Added listener
+    private val listener: OnSessionClickListener
 ) : RecyclerView.Adapter<ChatItemAdapter.MyViewHolder>() {
 
-    // ViewHolder class to hold references to each item view
     class MyViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val titleTextView: TextView = itemView.findViewById(R.id.chatTitleTextView)
         val descriptionTextView: TextView = itemView.findViewById(R.id.chatSubtitleTextView)
-        val timeSend: TextView = itemView.findViewById(R.id.timeTextView)
-        val lastMessage : TextView = itemView.findViewById(R.id.lastMessageLabel)
+        val connectSocketImage: ImageView = itemView.findViewById(R.id.connectSocketImage)
     }
 
-    // Inflate the item layout and create ViewHolder
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): MyViewHolder {
         val view = LayoutInflater.from(parent.context).inflate(R.layout.item_layout, parent, false)
-        Log.d("Adapter", "onCreateViewHolder called")
         return MyViewHolder(view)
     }
 
-    // Bind data to each ViewHolder
     override fun onBindViewHolder(holder: MyViewHolder, position: Int) {
         val item = itemList[position]
-        Log.d("Adapter", "Binding position: $position with IP: ${item.ip}")
+        Log.d("Adapter", "Binding peer: ${item.sessionName} at position $position")
+        holder.titleTextView.text = item.sessionName ?: "Unknown Device"
+        holder.descriptionTextView.text = item.ip
 
-        // Display "IP - Port" in the title
-        if(item.sessionName.isNullOrEmpty()){
-            holder.titleTextView.text = "${item.ip} - ${item.port}"
-        }
-        holder.titleTextView.text = "Chat Session Name- "+item.sessionName
-        holder.descriptionTextView.text = ""
-        holder.timeSend.text = item.time
-        if(item.isHostMe){
-            holder.descriptionTextView.text = "${item.ip} - ${item.port} - You are the Host"
-        }
-        else{
-            holder.descriptionTextView.text = "${item.ip} - ${item.port}"
-        }
-        holder.lastMessage.text = item.lastMessage ?: "No messages yet"
-        // Set background based on subscription state
-        if (item.isHostMe) {
-            //holder.itemView.setBackground(ContextCompat.getDrawable(context, R.drawable.gradient_background))
-            val onlineIndicator = holder.itemView.findViewById<View>(R.id.onlineIndicator)
-            onlineIndicator.setBackground(ContextCompat.getDrawable(context, R.drawable.circle_background_green))
-            val connectSocketImage = holder.itemView.findViewById<View>(R.id.connectSocketImage)
-            connectSocketImage.isClickable = true
-            //connectSocketImage.alpha = 0.5f
-        }
-        else if (item.isSubscribed) {
-            //holder.itemView.setBackground(ContextCompat.getDrawable(context, R.drawable.gradient_background))
-            val onlineIndicator = holder.itemView.findViewById<View>(R.id.onlineIndicator)
-            onlineIndicator.setBackground(ContextCompat.getDrawable(context, R.drawable.circle_background_green))
-        } else {
-            //holder.itemView.setBackground(ContextCompat.getDrawable(context, R.drawable.not_clicked_session))
-            val onlineIndicator = holder.itemView.findViewById<View>(R.id.onlineIndicator)
-            onlineIndicator.setBackground(ContextCompat.getDrawable(context, R.drawable.circle_bacground))
-        }
-
-        // Set connectSocketImage based on subscription state
-        val connectSocketImage = holder.itemView.findViewById<ImageView>(R.id.connectSocketImage)
-        if (item.isSubscribed) {
-            connectSocketImage.setImageResource(R.drawable.signal_disconnected) // Subscribed state
-        } else {
-            connectSocketImage.setImageResource(R.drawable.podcasts_connect) // Not subscribed state
-        }
-
-        // Set click listener on connectSocketImage
-        connectSocketImage.setOnClickListener {
-            Log.d("Adapter", "connectSocketImage clicked at position: $position")
-            listener.onSessionClicked(item, socketConnection) // Delegate to the activity
+        holder.connectSocketImage.setOnClickListener {
+            Log.d("Adapter", "Connect icon clicked for: ${item.sessionName}")
+            listener.onSessionClicked(item) // Trigger the listener with the selected peer
         }
     }
 
-    // Return the total number of items
-    override fun getItemCount(): Int = itemList.size
+
+
+    override fun getItemCount(): Int {
+        Log.d("Adapter", "Item count: ${itemList.size}")
+        return itemList.size
+    }
+
 }
+

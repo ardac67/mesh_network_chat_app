@@ -89,7 +89,6 @@ class SocketConnection(private val scope: CoroutineScope) {
     fun sendMessage(text: String) {
         val json = JSONObject().apply {
             put("message", text)
-            put("nick",ListSessions.ListSessions.username)
             put("ip",getLocalIpAddress())
         }.toString()
 

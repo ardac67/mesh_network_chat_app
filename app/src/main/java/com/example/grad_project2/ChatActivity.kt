@@ -9,7 +9,6 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.example.grad_project2.ListSessions.ListSessions
 import java.net.InetAddress
 import java.net.NetworkInterface
 import java.text.SimpleDateFormat
@@ -71,14 +70,7 @@ class ChatActivity : AppCompatActivity() {
 
         if (!isHost) {
             // Client logic
-            val connection = ListSessions.sharedSocketConnection
-            if (connection == null) {
-                Toast.makeText(this, "No socket connection available.", Toast.LENGTH_SHORT).show()
-                finish()
-                return
-            }
 
-            socketConnection = connection
 
             // Set message listener
             socketConnection.subscribeToSession(
@@ -126,16 +118,7 @@ class ChatActivity : AppCompatActivity() {
             )
         } else {
             // Host logic: Set up callback to receive messages
-            ListSessions.hostMessageListener = object : OnMessageReceivedListener {
-                override fun onMessageReceived(message: Message) {
-                    Log.d("messagemal","$message")
-                    runOnUiThread {
-                        messages.add(message)
-                        adapter.notifyItemInserted(messages.size - 1)
-                        messagesRecyclerView.scrollToPosition(messages.size - 1)
-                    }
-                }
-            }
+
         }
 
         // Send button logic
@@ -160,13 +143,7 @@ class ChatActivity : AppCompatActivity() {
 
                 if (isHost) {
                     // Host: broadcast to all connected clients
-                    val tcpServer = ListSessions.sharedTcpServer
-                    if (tcpServer == null) {
-                        Log.e("ChatActivity", "No tcpServer instance available for host.")
-                    } else {
-                        tcpServer.broadcastToClients(text)
-                        Log.d("ChatActivity", "Broadcasted message: $text")
-                    }
+
                 } else {
                     // Client: send the message to the host via the socket connection
                     socketConnection.sendMessage(text)
@@ -179,7 +156,7 @@ class ChatActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         if (isHost) {
-            ListSessions.hostMessageListener = null
+
         }
     }
     private fun formatTimestamp(timestamp: Long): String {
