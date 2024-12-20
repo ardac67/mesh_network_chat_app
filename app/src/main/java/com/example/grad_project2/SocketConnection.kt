@@ -14,7 +14,8 @@ import java.util.Collections
 
 class SocketConnection(private val scope: CoroutineScope) {
     private var outputWriter: PrintWriter? = null
-    private var socket: Socket? = null
+    var socket: Socket? = null
+    private var isSubscribed = false
 
     fun isValidIpAddress(ip: String): Boolean {
         return Patterns.IP_ADDRESS.matcher(ip).matches()
@@ -28,6 +29,11 @@ class SocketConnection(private val scope: CoroutineScope) {
         onSubscriptionSuccess: () -> Unit,
         onSubscriptionFailed: (Exception) -> Unit
     ): Job? {
+        if (isSubscribed) {
+            Log.w("SocketConnection", "Already subscribed to session for $ip:$port")
+            return null // Skip if already subscribed
+        }
+
         if (!isValidIpAddress(ip)) {
             Log.e("SocketError", "Invalid IP Address: $ip")
             scope.launch(Dispatchers.Main) {
@@ -35,6 +41,8 @@ class SocketConnection(private val scope: CoroutineScope) {
             }
             return null
         }
+
+        isSubscribed = true // Mark as subscribed to prevent further calls
         return scope.launch(Dispatchers.IO) {
             try {
                 socket = Socket()
@@ -55,10 +63,24 @@ class SocketConnection(private val scope: CoroutineScope) {
                     Log.d("isActive", "Received from $isActive")
                     val message = reader.readLine()
                     if (!message.isNullOrEmpty()) {
-                        Log.d("SocketMessage", "Received from $ip:$port - $message")
-                        withContext(Dispatchers.Main) {
-                            onMessageReceived(message)
+                        val json = JSONObject(message)
+                        val justMessage = json.getString("message")
+                        if(!justMessage.equals("Message received.")){
+                            val messageNew = Message(
+                                text = justMessage,
+                                isSentByMe = false,
+                                timestamp = System.currentTimeMillis(),
+                                type = "string",
+                                nick = "nick",
+                                ip = "ip"
+                            )
+                            Log.d("SocketMessage", "Received from $ip:$port - $messageNew")
+                            //withContext(Dispatchers.Main) {
+                            //onMessageReceived(message)
+                            //}
+                            ListSessions.SocketConnectionManager.notifyListeners(this@SocketConnection, messageNew)
                         }
+
                     } else {
                         // If message is empty or null, it might mean server disconnected or closed the stream
                         continue
@@ -90,6 +112,7 @@ class SocketConnection(private val scope: CoroutineScope) {
         val json = JSONObject().apply {
             put("message", text)
             put("ip",getLocalIpAddress())
+            put("nick","arda")
         }.toString()
 
         scope.launch(Dispatchers.IO) {

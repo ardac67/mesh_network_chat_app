@@ -19,7 +19,7 @@ import java.util.Collections
 class TcpServer(
     private val scope: CoroutineScope,
     val port: Int,
-    private val messageListener: OnMessageReceivedListener,
+    public var messageListener: OnMessageReceivedListener,
 ) {
     private var serverSocket: ServerSocket? = null
     private val clients = mutableListOf<ClientConnection>()

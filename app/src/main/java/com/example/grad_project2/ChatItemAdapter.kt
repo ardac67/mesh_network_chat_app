@@ -12,7 +12,7 @@ import androidx.recyclerview.widget.RecyclerView
 
 class ChatItemAdapter(
     private val context: Context,
-    private val itemList: MutableList<ChatGlobal>,
+    val itemList: MutableList<ChatGlobal>,
     private val listener: OnSessionClickListener
 ) : RecyclerView.Adapter<ChatItemAdapter.MyViewHolder>() {
 

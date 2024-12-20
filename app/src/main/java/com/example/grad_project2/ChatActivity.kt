@@ -7,8 +7,12 @@ import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleOwner
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import java.net.InetAddress
 import java.net.NetworkInterface
 import java.text.SimpleDateFormat
@@ -26,6 +30,7 @@ class ChatActivity : AppCompatActivity() {
     private lateinit var adapter: MessageAdapter
 
     private lateinit var socketConnection: SocketConnection
+    private lateinit var tcpServer: TcpServer
     private var hostIp: String? = null
     private var hostPort: Int? = null
     private var isHost: Boolean = false
@@ -38,7 +43,43 @@ class ChatActivity : AppCompatActivity() {
         isHost = intent.getBooleanExtra("IS_HOST", false)
         hostIp = intent.getStringExtra("HOST_IP")
         hostPort = intent.getIntExtra("HOST_PORT", -1)
+        if(!isHost){
+            socketConnection = ListSessions.SocketConnectionManager.getConnections().find { connection ->
+                connection.socket?.inetAddress?.hostAddress == hostIp
+            } ?: SocketConnection(CoroutineScope(Dispatchers.IO)).also {
+                ListSessions.SocketConnectionManager.addConnection(it)
+            }
+            ListSessions.SocketConnectionManager.addListener(socketConnection, object : OnMessageReceivedListener {
+                override fun onMessageReceived(message: Message) {
+                    Log.d("ChatActivity", "Message in ChatActivity: ${message.text}")
+                    runOnUiThread {
+                        messages.add(message)
+                        adapter.notifyItemInserted(messages.size - 1)
+                        messagesRecyclerView.scrollToPosition(messages.size - 1)
+                    }
+                }
+            })
 
+            lifecycle.addObserver(object : DefaultLifecycleObserver {
+                override fun onDestroy(owner: LifecycleOwner) {
+                    super.onDestroy(owner)
+                    //ListSessions.SocketConnectionManager.removeListener(socketConnection,this@ChatActivity)
+                }
+            })
+        }
+        else{
+            tcpServer = ListSessions.SocketConnectionManager.server!!
+            tcpServer.messageListener = object : OnMessageReceivedListener {
+                override fun onMessageReceived(message: Message) {
+                    Log.d("ChatActivity", "Message received on server: ${message.text}")
+                    runOnUiThread {
+                        messages.add(message)
+                        adapter.notifyItemInserted(messages.size - 1)
+                        messagesRecyclerView.scrollToPosition(messages.size - 1)
+                    }
+                }
+            }
+        }
         if (hostIp.isNullOrEmpty() || hostPort == null || hostPort == -1) {
             Toast.makeText(this, "Invalid host details", Toast.LENGTH_SHORT).show()
             finish()
@@ -70,8 +111,6 @@ class ChatActivity : AppCompatActivity() {
 
         if (!isHost) {
             // Client logic
-
-
             // Set message listener
             socketConnection.subscribeToSession(
                 ip = hostIp!!,
@@ -142,7 +181,7 @@ class ChatActivity : AppCompatActivity() {
                 messageEditText.text.clear()
 
                 if (isHost) {
-                    // Host: broadcast to all connected clients
+                    tcpServer.broadcastToClients(newMessage.text)
 
                 } else {
                     // Client: send the message to the host via the socket connection

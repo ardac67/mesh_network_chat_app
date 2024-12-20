@@ -18,16 +18,13 @@ import android.os.Build
 import android.os.Bundle
 import android.text.TextUtils
 import android.util.Log
-import android.view.View
 import android.widget.CheckBox
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import androidx.transition.Visibility
 import com.example.grad_project2.databinding.ActivityMainBinding
-import com.example.grad_project2.SocketConnection
 
 
 class MainActivity : AppCompatActivity() {
