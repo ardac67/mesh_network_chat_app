@@ -1,9 +1,11 @@
+package com.example.grad_project2.adapter
+
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
-import com.example.grad_project2.Message
+import com.example.grad_project2.model.Message
 import com.example.grad_project2.R
 import java.text.SimpleDateFormat
 import java.util.Date

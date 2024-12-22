@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/main"
+    android:background="@drawable/gradient_background"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fitsSystemWindows="true"
+    android:orientation="vertical"
+    tools:ignore="HardcodedText">
+
+        <!-- Top Banner -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@color/white"
+            android:padding="16dp"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:id="@+id/topBannerText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text=""
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="@android:color/black" />
+        </LinearLayout>
+
+        <!-- Messages RecyclerView -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/messagesRecyclerView"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:padding="8dp"
+            android:clipToPadding="false"
+            android:clipToOutline="false"
+            android:background="@drawable/background_chat" />
+
+        <!-- Message Input Section -->
+        <LinearLayout
+            android:id="@+id/messageInputLayout"
+            android:orientation="horizontal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="8dp"
+            android:gravity="center_vertical"
+            android:background="@android:color/white">
+
+            <!-- Emoji Button -->
+            <ImageView
+                android:id="@+id/emojiButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:src="@drawable/face"
+                android:contentDescription="Emoji"
+                android:padding="8dp" />
+
+            <!-- Attachment Button -->
+            <ImageView
+                android:id="@+id/attachmentButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:src="@drawable/baseline_attach_file_24"
+                android:contentDescription="Attachment"
+                android:padding="8dp"
+                android:layout_marginStart="4dp" />
+
+            <!-- Message Input Field -->
+            <EditText
+                android:id="@+id/messageEditText"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:hint="Type a message"
+                android:padding="12dp"
+                android:maxLines="4"
+                android:inputType="textMultiLine"
+                android:gravity="start|top" />
+
+            <!-- Send Button -->
+            <ImageView
+                android:id="@+id/sendButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:src="@drawable/wpicon"
+                android:contentDescription="Send"
+                android:padding="8dp"
+                android:layout_marginStart="8dp"
+                android:layout_gravity="center_vertical" />
+        </LinearLayout>
+
+
+</LinearLayout>

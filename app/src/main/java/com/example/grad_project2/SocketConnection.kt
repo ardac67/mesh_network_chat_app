@@ -1,6 +1,7 @@
 package com.example.grad_project2
 import android.util.Log
 import android.util.Patterns
+import com.example.grad_project2.model.Message
 import kotlinx.coroutines.*
 import org.json.JSONObject
 import java.io.BufferedReader

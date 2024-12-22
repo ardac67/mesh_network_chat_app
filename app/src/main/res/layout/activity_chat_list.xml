@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".ListSessions"
+    android:background="@drawable/gradient_background"
+    tools:ignore="HardcodedText">
+
+    <!-- Header Layout -->
+
+    <!-- RecyclerView -->
+    <LinearLayout
+        android:id="@+id/headerLayout"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:padding="16dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.0"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <!-- Circle Icon -->
+        <FrameLayout
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_gravity="center"
+            android:background="@drawable/message_icon"
+            android:clickable="true"
+            android:id="@+id/createSession">
+
+        </FrameLayout>
+
+        <!-- Spacer -->
+        <View
+            android:layout_width="16dp"
+            android:layout_height="match_parent" />
+
+        <!-- Title Text -->
+
+        <!-- Spacer to Push the Icon to the Right -->
+        <TextView
+            android:id="@+id/headerTitle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:fontFamily="sans-serif-medium"
+            android:gravity="center"
+            android:text="Stream Chat"
+            android:textColor="#000000"
+            android:textSize="22sp" />
+
+
+
+        <!-- Edit Icon -->
+        <ImageView
+            android:id="@+id/editIcon"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:contentDescription="Edit Icon"
+            android:layout_gravity="center"
+            android:src="@drawable/settings_icon" />
+    </LinearLayout>
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recyclerView"
+        android:layout_width="match_parent"
+        app:layout_constraintTop_toBottomOf="@id/headerLayout"
+        android:layout_height="0dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        tools:listitem="@layout/item_layout" />
+
+
+</androidx.constraintlayout.widget.ConstraintLayout>

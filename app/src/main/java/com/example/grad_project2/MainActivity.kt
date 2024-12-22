@@ -24,6 +24,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import com.example.grad_project2.activity.ChatSessionsActivity
 import com.example.grad_project2.databinding.ActivityMainBinding
 
 
@@ -42,7 +43,7 @@ class MainActivity : AppCompatActivity() {
         val chatSessionList = binding.listSessionButton
         val wifiName = binding.textWifiName
         chatSessionList.setOnClickListener {
-            val intent = Intent(this, ListSessions::class.java)
+            val intent = Intent(this, ChatSessionsActivity::class.java)
             startActivity(intent)
         }
     }

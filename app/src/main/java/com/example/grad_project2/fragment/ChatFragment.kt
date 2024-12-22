@@ -1,15 +1,19 @@
-package com.example.grad_project2
+package com.example.grad_project2.fragment
 
-import com.example.grad_project2.adapter.MessageAdapter
 import android.os.Bundle
 import android.util.Log
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
 import android.widget.EditText
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
-import androidx.appcompat.app.AppCompatActivity
+import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.example.grad_project2.R
+import com.example.grad_project2.adapter.MessageAdapter
 import com.example.grad_project2.model.Message
 import com.google.android.gms.nearby.Nearby
 import com.google.android.gms.nearby.connection.ConnectionsClient
@@ -21,7 +25,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-class ChatActivity : AppCompatActivity() {
+class ChatFragment : Fragment() {
 
     private lateinit var messagesRecyclerView: RecyclerView
     private lateinit var messageEditText: EditText
@@ -35,31 +39,55 @@ class ChatActivity : AppCompatActivity() {
     private lateinit var endpointId: String
     private lateinit var peerName: String
 
+    companion object {
+        private const val ARG_ENDPOINT_ID = "endpointId"
+        private const val ARG_PEER_NAME = "peerName"
+
+        fun newInstance(endpointId: String, peerName: String): ChatFragment {
+            return ChatFragment().apply {
+                arguments = Bundle().apply {
+                    putString(ARG_ENDPOINT_ID, endpointId)
+                    putString(ARG_PEER_NAME, peerName)
+                }
+            }
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_chat)
+        arguments?.let {
+            endpointId = it.getString(ARG_ENDPOINT_ID) ?: ""
+            peerName = it.getString(ARG_PEER_NAME) ?: "Unknown"
+        }
+    }
+
+    override fun onCreateView(
+        inflater: LayoutInflater, container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View {
+        return inflater.inflate(R.layout.fragment_chat, container, false)
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
 
         // Initialize UI Components
-        messagesRecyclerView = findViewById(R.id.messagesRecyclerView)
-        messageEditText = findViewById(R.id.messageEditText)
-        sendButton = findViewById(R.id.sendButton)
-        bannerTextView = findViewById(R.id.topBannerText)
-
-        // Retrieve connection details from Intent
-        endpointId = intent.getStringExtra("endpointId") ?: ""
-        peerName = intent.getStringExtra("peerName") ?: "Unknown"
+        messagesRecyclerView = view.findViewById(R.id.messagesRecyclerView)
+        messageEditText = view.findViewById(R.id.messageEditText)
+        sendButton = view.findViewById(R.id.sendButton)
+        bannerTextView = view.findViewById(R.id.topBannerText)
 
         bannerTextView.text = "Connected to $peerName"
 
         // Initialize RecyclerView
         adapter = MessageAdapter(messages)
         messagesRecyclerView.adapter = adapter
-        messagesRecyclerView.layoutManager = LinearLayoutManager(this).apply {
+        messagesRecyclerView.layoutManager = LinearLayoutManager(context).apply {
             stackFromEnd = true
         }
 
         // Initialize Nearby Connections Client
-        connectionsClient = Nearby.getConnectionsClient(this)
+        connectionsClient = Nearby.getConnectionsClient(requireContext())
 
         // Send Button Listener
         sendButton.setOnClickListener {
@@ -100,11 +128,11 @@ class ChatActivity : AppCompatActivity() {
             val payload = Payload.fromBytes(messageJson.toString().toByteArray())
             connectionsClient.sendPayload(endpointId, payload)
                 .addOnSuccessListener {
-                    Log.d("ChatActivity", "Message sent successfully: $text")
+                    Log.d("ChatFragment", "Message sent successfully: $text")
                 }
                 .addOnFailureListener { e ->
-                    Log.e("ChatActivity", "Failed to send message: ${e.message}")
-                    Toast.makeText(this, "Failed to send message", Toast.LENGTH_SHORT).show()
+                    Log.e("ChatFragment", "Failed to send message: ${e.message}")
+                    Toast.makeText(context, "Failed to send message", Toast.LENGTH_SHORT).show()
                 }
         }
     }
@@ -115,11 +143,11 @@ class ChatActivity : AppCompatActivity() {
             val receivedData = payload.asBytes()?.let { String(it) }
 
             if (receivedData == null) {
-                Log.e("ChatActivity", "Received null payload from $endpointId")
+                Log.e("ChatFragment", "Received null payload from $endpointId")
                 return
             }
 
-            Log.d("ChatActivity", "Received payload: $receivedData")
+            Log.d("ChatFragment", "Received payload: $receivedData")
 
             try {
                 val json = JSONObject(receivedData)
@@ -137,18 +165,18 @@ class ChatActivity : AppCompatActivity() {
                     ip = ip
                 )
 
-                runOnUiThread {
+                activity?.runOnUiThread {
                     messages.add(receivedMessage)
                     adapter.notifyItemInserted(messages.size - 1)
                     messagesRecyclerView.scrollToPosition(messages.size - 1)
                 }
             } catch (e: Exception) {
-                Log.e("ArdaChatActivityArda", "Failed to parse incoming message: ${e.message}")
+                Log.e("ChatFragment", "Failed to parse incoming message: ${e.message}")
             }
         }
 
         override fun onPayloadTransferUpdate(endpointId: String, update: PayloadTransferUpdate) {
-            Log.d("ArdaChatActivityArda", "Payload transfer update: ${update.bytesTransferred}")
+            Log.d("ChatFragment", "Payload transfer update: ${update.bytesTransferred}")
         }
     }
 
@@ -172,13 +200,13 @@ class ChatActivity : AppCompatActivity() {
                 }
             }
         } catch (e: Exception) {
-            Log.e("ChatActivity", "Error getting local IP address: ${e.message}")
+            Log.e("ChatFragment", "Error getting local IP address: ${e.message}")
         }
         return "0.0.0.0"
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        Log.d("ChatActivity", "ChatActivity destroyed")
+    override fun onDestroyView() {
+        super.onDestroyView()
+        Log.d("ChatFragment", "ChatFragment destroyed")
     }
 }

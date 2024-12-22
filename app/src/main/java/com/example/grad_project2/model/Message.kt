@@ -1,4 +1,4 @@
-package com.example.grad_project2
+package com.example.grad_project2.model
 
 data class Message(
     val text: String,

@@ -1,4 +1,4 @@
-package com.example.grad_project2
+package com.example.grad_project2.adapter
 
 import android.content.Context
 import android.util.Log
@@ -7,8 +7,10 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
-import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
+import com.example.grad_project2.model.ChatGlobal
+import com.example.grad_project2.OnSessionClickListener
+import com.example.grad_project2.R
 
 class ChatItemAdapter(
     private val context: Context,
@@ -36,6 +38,7 @@ class ChatItemAdapter(
         holder.connectSocketImage.setOnClickListener {
             Log.d("Adapter", "Connect icon clicked for: ${item.sessionName}")
             listener.onSessionClicked(item) // Trigger the listener with the selected peer
+            item.amIConnected = true
         }
     }
 

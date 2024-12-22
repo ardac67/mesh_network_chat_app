@@ -1,10 +1,8 @@
 // TcpServer.kt
 package com.example.grad_project2
 
-import android.content.Context
-import android.net.ConnectivityManager
-import android.net.NetworkCapabilities
 import android.util.Log
+import com.example.grad_project2.model.Message
 import kotlinx.coroutines.*
 import org.json.JSONObject
 import java.io.BufferedReader
