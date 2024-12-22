@@ -32,7 +32,7 @@
             android:layout_gravity="center"
             android:background="@drawable/message_icon"
             android:clickable="true"
-            android:id="@+id/createSession">
+            android:id="@+id/refreshSessions">
 
         </FrameLayout>
 

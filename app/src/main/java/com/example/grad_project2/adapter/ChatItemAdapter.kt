@@ -9,7 +9,7 @@ import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.example.grad_project2.model.ChatGlobal
-import com.example.grad_project2.OnSessionClickListener
+import com.example.grad_project2.interfaces.OnSessionClickListener
 import com.example.grad_project2.R
 
 class ChatItemAdapter(

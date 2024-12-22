@@ -10,11 +10,13 @@ import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.activityViewModels
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.grad_project2.R
 import com.example.grad_project2.adapter.MessageAdapter
 import com.example.grad_project2.model.Message
+import com.example.grad_project2.viewmodel.SharedChatViewModel
 import com.google.android.gms.nearby.Nearby
 import com.google.android.gms.nearby.connection.ConnectionsClient
 import com.google.android.gms.nearby.connection.Payload
@@ -32,7 +34,7 @@ class ChatFragment : Fragment() {
     private lateinit var sendButton: ImageView
     private lateinit var bannerTextView: TextView
 
-    private val messages = mutableListOf<Message>()
+    val messages = mutableListOf<Message>()
     private lateinit var adapter: MessageAdapter
 
     private lateinit var connectionsClient: ConnectionsClient
@@ -53,6 +55,8 @@ class ChatFragment : Fragment() {
         }
     }
 
+
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         arguments?.let {
@@ -68,10 +72,12 @@ class ChatFragment : Fragment() {
         return inflater.inflate(R.layout.fragment_chat, container, false)
     }
 
+    private val sharedViewModel: SharedChatViewModel by activityViewModels()
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // Initialize UI Components
+        // UI initialization
         messagesRecyclerView = view.findViewById(R.id.messagesRecyclerView)
         messageEditText = view.findViewById(R.id.messageEditText)
         sendButton = view.findViewById(R.id.sendButton)
@@ -79,17 +85,21 @@ class ChatFragment : Fragment() {
 
         bannerTextView.text = "Connected to $peerName"
 
-        // Initialize RecyclerView
         adapter = MessageAdapter(messages)
         messagesRecyclerView.adapter = adapter
         messagesRecyclerView.layoutManager = LinearLayoutManager(context).apply {
             stackFromEnd = true
         }
 
-        // Initialize Nearby Connections Client
         connectionsClient = Nearby.getConnectionsClient(requireContext())
 
-        // Send Button Listener
+        // Observe incoming messages from SharedViewModel
+        sharedViewModel.incomingMessage.observe(viewLifecycleOwner) { message ->
+            messages.add(message)
+            adapter.notifyItemInserted(messages.size - 1)
+            messagesRecyclerView.scrollToPosition(messages.size - 1)
+        }
+
         sendButton.setOnClickListener {
             sendMessage()
         }

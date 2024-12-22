@@ -14,6 +14,7 @@ import androidx.core.app.ActivityCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.grad_project2.adapter.ChatItemAdapter
+import com.example.grad_project2.interfaces.OnSessionClickListener
 import com.example.grad_project2.model.ChatGlobal
 import com.google.android.gms.nearby.Nearby
 import com.google.android.gms.nearby.connection.AdvertisingOptions

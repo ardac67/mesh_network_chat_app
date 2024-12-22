@@ -9,16 +9,21 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Button
+import android.widget.FrameLayout
 import androidx.core.app.ActivityCompat
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.activityViewModels
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.grad_project2.GraphNode
-import com.example.grad_project2.OnSessionClickListener
+import com.example.grad_project2.interfaces.OnSessionClickListener
 import com.example.grad_project2.R
 import com.example.grad_project2.activity.ChatSessionsActivity
 import com.example.grad_project2.adapter.ChatItemAdapter
 import com.example.grad_project2.model.ChatGlobal
+import com.example.grad_project2.model.Message
+import com.example.grad_project2.viewmodel.SharedChatViewModel
 import com.google.android.gms.nearby.Nearby
 import com.google.android.gms.nearby.connection.AdvertisingOptions
 import com.google.android.gms.nearby.connection.ConnectionInfo
@@ -33,6 +38,7 @@ import com.google.android.gms.nearby.connection.PayloadCallback
 import com.google.android.gms.nearby.connection.PayloadTransferUpdate
 import com.google.android.gms.nearby.connection.Strategy
 import org.json.JSONArray
+import org.json.JSONException
 import org.json.JSONObject
 import java.util.UUID
 
@@ -48,6 +54,99 @@ class ChatListFragment : Fragment() {
     private val connectionGraph = mutableMapOf<String, GraphNode>()
     private lateinit var deviceUUID: UUID
 
+    private val sharedViewModel: SharedChatViewModel by activityViewModels()
+
+    private val payloadCallback = object : PayloadCallback() {
+        override fun onPayloadReceived(endpointId: String, payload: Payload) {
+            val receivedData = payload.asBytes()?.let { String(it) }
+
+            if (receivedData == null) {
+                Log.e("ChatListFragment", "Received null payload from $endpointId")
+                return
+            }
+
+            if (discoveredPeers.none { it.ip == endpointId }){
+                //Log.d("ZAART", "arrt: $receivedData")
+                discoveredPeers.add(ChatGlobal(endpointId, 8000, false, amIConnected = false))
+                adapter.notifyDataSetChanged()
+            }
+
+            Log.d("ChatListFragment", "Received payload: $receivedData")
+            Log.d("ChatListFragment", "Payload received from $endpointId: $receivedData")
+            Log.d("ChatListFragment", "Current connected endpoints: $connectedEndpoints")
+
+            if (receivedData.startsWith("{") && receivedData.endsWith("}")) {
+                try {
+                    val json = JSONObject(receivedData)
+                    val msgText = json.getString("message")
+                    val nick = json.getString("nick")
+                    val timestamp = json.getString("timestamp")
+                    val ip = json.getString("ip")
+                    val message = Message(
+                        text = msgText,
+                        isSentByMe = false,
+                        timestamp = System.currentTimeMillis(),
+                        type = "string",
+                        nick = nick,
+                        ip = ip
+                    )
+
+                    // Share the message with ChatFragment using ViewModel
+                    sharedViewModel.postMessage(message)
+
+                } catch (e: org.json.JSONException) {
+                    try {
+                        val json = JSONObject(receivedData)
+                        val deviceId = json.getString("deviceId")
+                        val connections = json.getJSONArray("connections")
+
+                        Log.d("GraphDebug", "Processing connections for deviceId: $deviceId")
+
+                        // Add or update the node for the incoming deviceId
+                        val node = connectionGraph.getOrPut(deviceId) { GraphNode(deviceId) }
+
+                        // Ensure a connection exists between local device and incoming deviceId
+                        val localNode = connectionGraph.getOrPut(deviceUUID.toString()) { GraphNode(deviceUUID.toString()) }
+                        if (!localNode.connections.contains(node)) {
+                            localNode.connections.add(node)
+                            Log.d("GraphDebug", "Linked local device (${deviceUUID}) with incoming device ($deviceId)")
+                        }
+
+                        // Process all the connections for the incoming node
+                        for (i in 0 until connections.length()) {
+                            val connectedDeviceId = connections.getString(i)
+                            val childNode = connectionGraph.getOrPut(connectedDeviceId) { GraphNode(connectedDeviceId) }
+
+                            if (!node.connections.contains(childNode)) {
+                                node.connections.add(childNode)
+                                Log.d("GraphDebug", "Linked $deviceId to $connectedDeviceId")
+                            }
+                        }
+
+                        Log.d("GraphDebug", "Updated Graph Nodes: ${connectionGraph.keys}")
+                        displayGraph(deviceUUID.toString())
+
+                    } catch (e: JSONException) {
+                        Log.e("ChatListFragment", "Failed to parse connections payload: ${e.message}")
+                    }
+                }
+            }// Handle predefined command "REQUEST_CONNECTIONS"
+            else if (receivedData == "REQUEST_CONNECTIONS") {
+                Log.d("ChatListFragment", "Handling REQUEST_CONNECTIONS from $endpointId")
+                handleConnectionRequest(endpointId)
+            }
+            // Handle unknown or unexpected payloads
+            else {
+                Log.w("ChatListFragment", "Received unexpected payload from $endpointId: $receivedData")
+            }
+        }
+
+        override fun onPayloadTransferUpdate(endpointId: String, update: PayloadTransferUpdate) {
+            Log.d("ChatListFragment", "Payload transfer update: ${update.bytesTransferred}")
+        }
+    }
+
+
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
@@ -59,13 +158,16 @@ class ChatListFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         deviceUUID = generateDeviceUUID()
         connectionsClient = Nearby.getConnectionsClient(requireContext())
+        connectionGraph.getOrPut(deviceUUID.toString()) { GraphNode(deviceUUID.toString()) }
+        Log.d("GraphDebug", "Local device added to graph: ${deviceUUID}")
         requestBluetoothPermissions()
         startAdvertising()
         startDiscovery()
-
+    ////ef54025c-2ad0-32fd-8279-2b0c21ea00e5
         recyclerView = view.findViewById(R.id.recyclerView)
         recyclerView.layoutManager = LinearLayoutManager(requireContext())
-        adapter = ChatItemAdapter(requireContext(), discoveredPeers, object : OnSessionClickListener {
+        adapter = ChatItemAdapter(requireContext(), discoveredPeers, object :
+            OnSessionClickListener {
             override fun onSessionClicked(peer: ChatGlobal) {
                 if(!peer.amIConnected){
                     connectionsClient.requestConnection(peer.ip, peer.ip, connectionLifecycleCallback)
@@ -171,46 +273,6 @@ class ChatListFragment : Fragment() {
         }
     }
 
-    private val payloadCallback = object : PayloadCallback() {
-        override fun onPayloadReceived(endpointId: String, payload: Payload) {
-            val receivedData = payload.asBytes()?.let { String(it) }
-
-            // Check if the payload is null or empty
-            if (receivedData == null) {
-                Log.e("LogArda", "Received null payload from $endpointId")
-                return
-            }
-
-            Log.d("LogArda", "Received payload from $endpointId: $receivedData")
-
-
-            // Handle JSON payloads
-            if (receivedData.startsWith("{") && receivedData.endsWith("}")) {
-                try {
-                    handleReceivedConnections(receivedData)
-                    displayGraph(deviceUUID.toString())
-                    //(activity as? ChatSessionsActivity)?.navigateToChatFragment(endpointId, "Peer Device")
-
-                } catch (e: org.json.JSONException) {
-                    Log.e("LogArda", "Failed to parse JSON payload: ${e.message}")
-                }
-            }
-            // Handle predefined command "REQUEST_CONNECTIONS"
-            else if (receivedData == "REQUEST_CONNECTIONS") {
-                Log.d("LogArda", "Handling REQUEST_CONNECTIONS from $endpointId")
-                handleConnectionRequest(endpointId)
-            }
-            // Handle unknown or unexpected payloads
-            else {
-                Log.w("LogArda", "Received unexpected payload from $endpointId: $receivedData")
-            }
-        }
-
-        override fun onPayloadTransferUpdate(endpointId: String, update: PayloadTransferUpdate) {
-            Log.d("LogArda", "Payload transfer update from $endpointId: ${update.bytesTransferred}")
-        }
-    }
-
     private fun requestBluetoothPermissions() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) { // Android 12+
             val permissions = arrayOf(
@@ -276,13 +338,41 @@ class ChatListFragment : Fragment() {
     }
 
     fun displayGraph(rootDeviceId: String) {
-        val rootNode = connectionGraph[rootDeviceId] ?: return
+        if (!connectionGraph.containsKey(rootDeviceId)) {
+            Log.e("GraphDebugError", "Root deviceId ($rootDeviceId) not found in connectionGraph!")
+            Log.e("GraphDebugError", "Available keys in graph: ${connectionGraph.keys}")
+            return
+        }
+        val rootNode = connectionGraph[rootDeviceId]
+        if (rootNode == null) {
+            Log.e("GraphDebugError", "Root node is null for deviceId: $rootDeviceId")
+            return
+        }
         renderNode(rootNode, 0)
     }
 
+
     fun renderNode(node: GraphNode, level: Int) {
-        Log.d("Graph", " ".repeat(level * 2) + node.deviceId)
+        Log.d("Zarting", " ".repeat(level * 2) + node.deviceId)
         node.connections.forEach { renderNode(it, level + 1) }
     }
+    private fun refreshNearbyConnections() {
+        Log.d("Nearby", "Refreshing Nearby Connections...")
+
+        // Stop all existing connections
+        connectionsClient.stopAllEndpoints()
+        connectionsClient.stopAdvertising()
+        connectionsClient.stopDiscovery()
+
+        // Clear UI lists
+        discoveredPeers.clear()
+        connectedEndpoints.clear()
+        adapter.notifyDataSetChanged()
+
+        // Restart advertising and discovery
+        startAdvertising()
+        startDiscovery()
+    }
+
 
 }
