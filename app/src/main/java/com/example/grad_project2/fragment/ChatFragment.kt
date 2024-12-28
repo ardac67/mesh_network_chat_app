@@ -96,7 +96,7 @@ class ChatFragment : Fragment() {
 
         // Observe incoming messages from SharedViewModel
         sharedViewModel.incomingMessage.observe(viewLifecycleOwner) { message ->
-            if(message.from.equals(peerName)){
+            if(message.from.equals(peerName) || message.from.equals("System")){
                 messages.add(message)
                 adapter.notifyItemInserted(messages.size - 1)
                 messagesRecyclerView.scrollToPosition(messages.size - 1)

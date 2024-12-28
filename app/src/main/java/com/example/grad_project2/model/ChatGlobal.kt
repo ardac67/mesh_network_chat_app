@@ -6,5 +6,6 @@ data class ChatGlobal(
     val isHostMe: Boolean,
     val sessionName: String? = null,
     var amIConnected: Boolean = false,
-    val deviceName : String ?= null
+    val deviceName : String ?= null,
+    var lastMessage: String?= null
 )

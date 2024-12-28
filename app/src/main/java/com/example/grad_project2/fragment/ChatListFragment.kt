@@ -1,6 +1,7 @@
 package com.example.grad_project2.fragment
 
 import android.Manifest
+import android.app.AlertDialog
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -9,6 +10,9 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.FrameLayout
+import android.widget.ProgressBar
+import android.widget.Toast
 import androidx.core.app.ActivityCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
@@ -50,7 +54,9 @@ class ChatListFragment : Fragment() {
     private lateinit var recyclerView: RecyclerView
     private val discoveredPeers = mutableListOf<ChatGlobal>()
     private val connectionGraph = mutableMapOf<String, GraphNode>()
-    private lateinit var deviceUUID: UUID
+    private lateinit var deviceUUID: String
+    private lateinit var connectionProgressBar: ProgressBar
+
 
     private val sharedViewModel: SharedChatViewModel by activityViewModels()
 
@@ -90,7 +96,20 @@ class ChatListFragment : Fragment() {
                         ip = ip,
                         from = json.getString("from")
                     )
-
+                    val chatPeer = discoveredPeers.find { it.deviceName == json.getString("from") }
+                    Log.d("ardaaaaaaa", "$chatPeer")
+                    chatPeer?.let {
+                        it.lastMessage = msgText
+                        val position = discoveredPeers.indexOf(it)
+                        Log.d("ChatListFragment", "Updating lastMessage for peer at position $position: $msgText")
+                        if (position != -1) {
+                            activity?.runOnUiThread {
+                                adapter.notifyItemChanged(position)
+                            }
+                        } else {
+                            Log.e("ChatListFragment", "Peer not found in list when trying to update lastMessage")
+                        }
+                    }
                     // Share the message with ChatFragment using ViewModel
                     sharedViewModel.postMessage(message)
 
@@ -99,14 +118,14 @@ class ChatListFragment : Fragment() {
                         val json = JSONObject(receivedData)
                         val deviceId = json.getString("from")
                         val connections = json.getJSONArray("connections")
-
+                        val deviceName = "${Build.MANUFACTURER} ${Build.MODEL}"
                         Log.d("GraphDebug", "Processing connections for deviceId: $deviceId")
 
                         // Add or update the node for the incoming deviceId
                         val node = connectionGraph.getOrPut(deviceId) { GraphNode(deviceId) }
 
                         // Ensure a connection exists between local device and incoming deviceId
-                        val localNode = connectionGraph.getOrPut(deviceUUID.toString()) { GraphNode(deviceUUID.toString()) }
+                        val localNode = connectionGraph.getOrPut(deviceName) { GraphNode(deviceName) }
                         if (!localNode.connections.contains(node)) {
                             localNode.connections.add(node)
                             Log.d("GraphDebug", "Linked local device (${deviceUUID}) with incoming device ($deviceId)")
@@ -124,7 +143,7 @@ class ChatListFragment : Fragment() {
                         }
 
                         Log.d("GraphDebug", "Updated Graph Nodes: ${connectionGraph.keys}")
-                        displayGraph(deviceUUID.toString())
+                        displayGraph(deviceName)
 
                     } catch (e: JSONException) {
                         Log.e("ChatListFragment", "Failed to parse connections payload: ${e.message}")
@@ -156,7 +175,8 @@ class ChatListFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        deviceUUID = generateDeviceUUID()
+        val deviceName = "${Build.MANUFACTURER} ${Build.MODEL}"
+        deviceUUID = deviceName
         connectionsClient = Nearby.getConnectionsClient(requireContext())
         connectionGraph.getOrPut(deviceUUID.toString()) { GraphNode(deviceUUID.toString()) }
         Log.d("GraphDebug", "Local device added to graph: ${deviceUUID}")
@@ -166,11 +186,13 @@ class ChatListFragment : Fragment() {
     ////ef54025c-2ad0-32fd-8279-2b0c21ea00e5
         recyclerView = view.findViewById(R.id.recyclerView)
         recyclerView.layoutManager = LinearLayoutManager(requireContext())
+        connectionProgressBar = view.findViewById(R.id.connectionProgressBar)
         adapter = ChatItemAdapter(requireContext(), discoveredPeers, object :
             OnSessionClickListener {
             override fun onSessionClicked(peer: ChatGlobal) {
                 if(!peer.amIConnected){
                     connectionsClient.requestConnection(peer.ip, peer.ip, connectionLifecycleCallback)
+                    showLoadingBar()
                 }
                 else{
                     (activity as? ChatSessionsActivity)?.navigateToChatFragment(peer.ip, peer.deviceName.toString())
@@ -179,6 +201,10 @@ class ChatListFragment : Fragment() {
             }
         })
         recyclerView.adapter = adapter
+        val createSession: FrameLayout = view.findViewById(R.id.createSession)
+        createSession.setOnClickListener {
+            refreshNearbyConnections()
+        }
     }
 
     private fun startAdvertising() {
@@ -193,12 +219,26 @@ class ChatListFragment : Fragment() {
                     endpointId: String,
                     connectionInfo: ConnectionInfo
                 ) {
-                    connectionsClient.acceptConnection(endpointId, payloadCallback)
+                    activity?.runOnUiThread {
+                        AlertDialog.Builder(requireContext())
+                            .setTitle("Connection Request")
+                            .setMessage("${connectionInfo.endpointName} wants to connect. Accept?")
+                            .setPositiveButton("Accept") { dialog, which ->
+                                connectionsClient.acceptConnection(endpointId, payloadCallback)
+                            }
+                            .setNegativeButton("Reject") { dialog, which ->
+                                connectionsClient.rejectConnection(endpointId)
+                                Toast.makeText(context, "Connection rejected", Toast.LENGTH_SHORT).show()
+                            }
+                            .setCancelable(false)
+                            .show()
+                    }
                 }
 
                 override fun onConnectionResult(endpointId: String, result: ConnectionResolution) {
                     if (result.status.isSuccess) {
                         // 1) Mark the endpoint as connected
+                        hideLoadingBar()
                         connectedEndpoints.add(endpointId)
                         discoveredPeers.firstOrNull { it.ip == endpointId }?.amIConnected = true
 
@@ -207,7 +247,7 @@ class ChatListFragment : Fragment() {
 
                         // 3) Retrieve the friendly name
                         val endpointName = discoveredPeers.firstOrNull { it.ip == endpointId }?.deviceName ?: "Unknown Device"
-
+                        Log.d("LogArda", "Successfully connected to $endpointName")
                         // 4) Share your existing connections with the newly connected peer
                         shareConnectionsWithPeer(endpointId)
 
@@ -218,12 +258,32 @@ class ChatListFragment : Fragment() {
                         // 6) Immediately open the chat
                         (activity as? ChatSessionsActivity)?.navigateToChatFragment(endpointId, endpointName)
                     }
+                    else{
+                        Toast.makeText(context, "Connection rejected1", Toast.LENGTH_SHORT).show()
+                        discoveredPeers.firstOrNull { it.ip == endpointId }?.amIConnected = false
+                    }
                 }
 
 
                 override fun onDisconnected(endpointId: String) {
                     connectedEndpoints.remove(endpointId)
                     Log.d("LogArda", "Disconnected from $endpointId")
+                    discoveredPeers.firstOrNull { it.ip == endpointId }?.amIConnected = false
+
+                    // 2) Log
+                    Log.d("LogArda", "Disconnected from $endpointId")
+
+                    // 3) Post a "disconnected" message to the chat
+                    val systemMessage = Message(
+                        text = "User $endpointId has disconnected.",
+                        isSentByMe = false,
+                        timestamp = System.currentTimeMillis(),
+                        type = "system",
+                        nick = "System",       // or any nickname you want to indicate it's a system message
+                        ip = endpointId,       // or "N/A" if you prefer
+                        from = "System"        // so ChatFragment knows it's a system message
+                    )
+                    sharedViewModel.postMessage(systemMessage)
                 }
             },
             AdvertisingOptions.Builder().setStrategy(Strategy.P2P_CLUSTER).build()
@@ -247,7 +307,7 @@ class ChatListFragment : Fragment() {
                 }
 
                 override fun onEndpointLost(endpointId: String) {
-                    discoveredPeers.removeAll { it.ip == endpointId }
+                    discoveredPeers.removeAll { !it.amIConnected && it.ip == endpointId }
                     adapter.notifyDataSetChanged()
                     Log.d("LogArda", "Lost connection to $endpointId")
                 }
@@ -275,6 +335,7 @@ class ChatListFragment : Fragment() {
         override fun onConnectionResult(endpointId: String, result: ConnectionResolution) {
             if (result.status.isSuccess) {
                 // 1) Mark the endpoint as connected locally
+                hideLoadingBar()
                 connectedEndpoints.add(endpointId)
                 discoveredPeers.firstOrNull { it.ip == endpointId }?.amIConnected = true
 
@@ -284,24 +345,46 @@ class ChatListFragment : Fragment() {
                 // 3) Retrieve the friendly name (if any)
                 val endpointName = discoveredPeers.firstOrNull { it.ip == endpointId }?.deviceName
                     ?: "Unknown Device"
-
+                Log.d("LogArda", "Successfully connected to $endpointName")
                 // 4) Share existing connections with the newly connected peer
                 shareConnectionsWithPeer(endpointId)
 
                 // 5) Request connections from that peer (to build a graph, if you need it)
                 requestConnections(endpointId)
-                displayGraph(deviceUUID.toString())
+                val deviceName = "${Build.MANUFACTURER} ${Build.MODEL}"
+                displayGraph(deviceName)
 
                 // 6) Immediately navigate to the chat
                 (activity as? ChatSessionsActivity)?.navigateToChatFragment(endpointId, endpointName)
             } else {
                 Log.e("LogArda", "Failed to connect to $endpointId")
+                discoveredPeers.firstOrNull { it.ip == endpointId }?.amIConnected = false
+                hideLoadingBar()
+                Toast.makeText(context, "Connection rejected2", Toast.LENGTH_SHORT).show()
             }
         }
 
 
         override fun onDisconnected(endpointId: String) {
             Log.d("LogArda", "Disconnected from $endpointId")
+            connectedEndpoints.remove(endpointId)
+            //Log.d("LogArda", "Disconnected from $endpointId")
+            discoveredPeers.firstOrNull { it.ip == endpointId }?.amIConnected = false
+
+            // 2) Log
+           //Log.d("LogArda", "Disconnected from $endpointId")
+
+            // 3) Post a "disconnected" message to the chat
+            val systemMessage = Message(
+                text = "User $endpointId has disconnected.",
+                isSentByMe = false,
+                timestamp = System.currentTimeMillis(),
+                type = "system",
+                nick = "System",       // or any nickname you want to indicate it's a system message
+                ip = endpointId,       // or "N/A" if you prefer
+                from = "System"        // so ChatFragment knows it's a system message
+            )
+            sharedViewModel.postMessage(systemMessage)
         }
     }
 
@@ -336,9 +419,11 @@ class ChatListFragment : Fragment() {
     }
 
     fun shareConnectionsWithPeer(endpointId: String) {
+        val deviceName = "${Build.MANUFACTURER} ${Build.MODEL}"
         val deviceInfo = JSONObject().apply {
             put("deviceId", deviceUUID)
             put("connections", JSONArray(connectedEndpoints))
+            put("from",deviceName)
         }
         val payload = Payload.fromBytes(deviceInfo.toString().toByteArray())
         Nearby.getConnectionsClient(requireContext()).sendPayload(endpointId, payload)
@@ -389,7 +474,7 @@ class ChatListFragment : Fragment() {
         node.connections.forEach { renderNode(it, level + 1) }
     }
     private fun refreshNearbyConnections() {
-        Log.d("Nearby", "Refreshing Nearby Connections...")
+        Log.d("Nearby313131313131313", "Refreshing Nearby Connections...")
 
         // Stop all existing connections
         connectionsClient.stopAllEndpoints()
@@ -404,6 +489,16 @@ class ChatListFragment : Fragment() {
         // Restart advertising and discovery
         startAdvertising()
         startDiscovery()
+    }
+    private fun showLoadingBar() {
+        activity?.runOnUiThread {
+            connectionProgressBar.visibility = View.VISIBLE
+        }
+    }
+    private fun hideLoadingBar() {
+        activity?.runOnUiThread {
+            connectionProgressBar.visibility = View.GONE
+        }
     }
 
 

@@ -75,5 +75,18 @@
         app:layout_constraintEnd_toEndOf="parent"
         tools:listitem="@layout/item_layout" />
 
+    <ProgressBar
+        android:id="@+id/connectionProgressBar"
+        style="?android:attr/progressBarStyleLarge"
+        android:layout_width="100dp"
+        android:layout_height="100dp"
+        android:indeterminateDrawable="@drawable/fancy_progress_bar"
+        android:visibility="gone"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"/>
+
+
 
 </androidx.constraintlayout.widget.ConstraintLayout>
