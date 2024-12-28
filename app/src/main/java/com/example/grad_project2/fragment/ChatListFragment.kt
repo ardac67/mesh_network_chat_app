@@ -9,8 +9,6 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Button
-import android.widget.FrameLayout
 import androidx.core.app.ActivityCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
@@ -181,9 +179,6 @@ class ChatListFragment : Fragment() {
             }
         })
         recyclerView.adapter = adapter
-
-        requestBluetoothPermissions()
-        startDiscovery()
     }
 
     private fun startAdvertising() {
@@ -203,15 +198,32 @@ class ChatListFragment : Fragment() {
 
                 override fun onConnectionResult(endpointId: String, result: ConnectionResolution) {
                     if (result.status.isSuccess) {
-                        connectedEndpoints.add(endpointId) // Track the connected peer
-                        shareConnectionsWithPeer(endpointId) // Share connection info'
+                        // 1) Mark the endpoint as connected
+                        connectedEndpoints.add(endpointId)
+                        discoveredPeers.firstOrNull { it.ip == endpointId }?.amIConnected = true
+
+                        // 2) Log success
                         Log.d("LogArda", "Connected to $endpointId")
+
+                        // 3) Retrieve the friendly name
+                        val endpointName = discoveredPeers.firstOrNull { it.ip == endpointId }?.deviceName ?: "Unknown Device"
+
+                        // 4) Share your existing connections with the newly connected peer
+                        shareConnectionsWithPeer(endpointId)
+
+                        // 5) Request their connections (to build your graph if needed)
+                        requestConnections(endpointId)
+                        displayGraph(deviceUUID.toString())
+
+                        // 6) Immediately open the chat
+                        (activity as? ChatSessionsActivity)?.navigateToChatFragment(endpointId, endpointName)
                     }
                 }
 
+
                 override fun onDisconnected(endpointId: String) {
                     connectedEndpoints.remove(endpointId)
-                    Log.d("Nearby", "Disconnected from $endpointId")
+                    Log.d("LogArda", "Disconnected from $endpointId")
                 }
             },
             AdvertisingOptions.Builder().setStrategy(Strategy.P2P_CLUSTER).build()
@@ -262,21 +274,34 @@ class ChatListFragment : Fragment() {
 
         override fun onConnectionResult(endpointId: String, result: ConnectionResolution) {
             if (result.status.isSuccess) {
+                // 1) Mark the endpoint as connected locally
                 connectedEndpoints.add(endpointId)
+                discoveredPeers.firstOrNull { it.ip == endpointId }?.amIConnected = true
+
+                // 2) Log success
                 Log.d("LogArda", "Successfully connected to $endpointId")
+
+                // 3) Retrieve the friendly name (if any)
                 val endpointName = discoveredPeers.firstOrNull { it.ip == endpointId }?.deviceName
                     ?: "Unknown Device"
+
+                // 4) Share existing connections with the newly connected peer
                 shareConnectionsWithPeer(endpointId)
+
+                // 5) Request connections from that peer (to build a graph, if you need it)
                 requestConnections(endpointId)
                 displayGraph(deviceUUID.toString())
+
+                // 6) Immediately navigate to the chat
                 (activity as? ChatSessionsActivity)?.navigateToChatFragment(endpointId, endpointName)
             } else {
                 Log.e("LogArda", "Failed to connect to $endpointId")
             }
         }
 
+
         override fun onDisconnected(endpointId: String) {
-            Log.d("ChatListFragment", "Disconnected from $endpointId")
+            Log.d("LogArda", "Disconnected from $endpointId")
         }
     }
 
@@ -296,7 +321,7 @@ class ChatListFragment : Fragment() {
             if (missingPermissions.isNotEmpty()) {
                 requestPermissions(missingPermissions.toTypedArray(), 1001)
             } else {
-                Log.d("Permissions", "All Bluetooth permissions already granted")
+                Log.d("LogArda", "All Bluetooth permissions already granted")
             }
         } else {
             // For Android versions below 12
