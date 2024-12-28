@@ -82,13 +82,15 @@ class ChatListFragment : Fragment() {
                     val nick = json.getString("nick")
                     val timestamp = json.getString("timestamp")
                     val ip = json.getString("ip")
+
                     val message = Message(
                         text = msgText,
                         isSentByMe = false,
                         timestamp = System.currentTimeMillis(),
                         type = "string",
                         nick = nick,
-                        ip = ip
+                        ip = ip,
+                        from = json.getString("from")
                     )
 
                     // Share the message with ChatFragment using ViewModel
@@ -97,7 +99,7 @@ class ChatListFragment : Fragment() {
                 } catch (e: org.json.JSONException) {
                     try {
                         val json = JSONObject(receivedData)
-                        val deviceId = json.getString("deviceId")
+                        val deviceId = json.getString("from")
                         val connections = json.getJSONArray("connections")
 
                         Log.d("GraphDebug", "Processing connections for deviceId: $deviceId")
@@ -173,7 +175,7 @@ class ChatListFragment : Fragment() {
                     connectionsClient.requestConnection(peer.ip, peer.ip, connectionLifecycleCallback)
                 }
                 else{
-                    (activity as? ChatSessionsActivity)?.navigateToChatFragment(peer.ip, "Peer Device")
+                    (activity as? ChatSessionsActivity)?.navigateToChatFragment(peer.ip, peer.deviceName.toString())
                 }
 
             }
@@ -185,9 +187,11 @@ class ChatListFragment : Fragment() {
     }
 
     private fun startAdvertising() {
+        val deviceName = "${Build.MANUFACTURER} ${Build.MODEL}"
+        println("Device Name: $deviceName")
         val connectionsClient = Nearby.getConnectionsClient(requireContext())
         connectionsClient.startAdvertising(
-            deviceUUID.toString(), // Replace with your device name or ID
+            deviceName, // Replace with your device name or ID
             "com.example.grad_project2",
             object : ConnectionLifecycleCallback() {
                 override fun onConnectionInitiated(
@@ -222,9 +226,10 @@ class ChatListFragment : Fragment() {
             object : EndpointDiscoveryCallback() {
                 override fun onEndpointFound(endpointId: String, info: DiscoveredEndpointInfo) {
                     //connectionsClient.requestConnection("DeviceName", endpointId, connectionLifecycleCallback)
+                    val deviceName = info.endpointName
                     Log.d("LogArda", "Discovered $endpointId")
                     if (discoveredPeers.none { it.ip == endpointId }) {
-                        discoveredPeers.add(ChatGlobal(endpointId, 8000, false, amIConnected = false))
+                        discoveredPeers.add(ChatGlobal(endpointId, 8000, false, amIConnected = false, deviceName = deviceName))
                         adapter.notifyDataSetChanged()
                     }
                 }
@@ -259,10 +264,12 @@ class ChatListFragment : Fragment() {
             if (result.status.isSuccess) {
                 connectedEndpoints.add(endpointId)
                 Log.d("LogArda", "Successfully connected to $endpointId")
+                val endpointName = discoveredPeers.firstOrNull { it.ip == endpointId }?.deviceName
+                    ?: "Unknown Device"
                 shareConnectionsWithPeer(endpointId)
                 requestConnections(endpointId)
                 displayGraph(deviceUUID.toString())
-                (activity as? ChatSessionsActivity)?.navigateToChatFragment(endpointId, "Peer Device")
+                (activity as? ChatSessionsActivity)?.navigateToChatFragment(endpointId, endpointName)
             } else {
                 Log.e("LogArda", "Failed to connect to $endpointId")
             }

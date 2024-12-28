@@ -32,7 +32,7 @@ class ChatItemAdapter(
     override fun onBindViewHolder(holder: MyViewHolder, position: Int) {
         val item = itemList[position]
         Log.d("Adapter", "Binding peer: ${item.sessionName} at position $position")
-        holder.titleTextView.text = item.sessionName ?: "Unknown Device"
+        holder.titleTextView.text = item.deviceName ?: "Unknown Device"
         holder.descriptionTextView.text = item.ip
 
         holder.connectSocketImage.setOnClickListener {

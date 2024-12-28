@@ -1,5 +1,6 @@
 package com.example.grad_project2
 
+import android.os.Build
 import com.example.grad_project2.adapter.MessageAdapter
 import android.os.Bundle
 import android.util.Log
@@ -73,13 +74,14 @@ class ChatActivity : AppCompatActivity() {
         if (text.isNotEmpty()) {
             val timestamp = System.currentTimeMillis()
             val formattedTimestamp = formatTimestamp(timestamp)
-
+            val deviceName = "${Build.MANUFACTURER} ${Build.MODEL}"
             // Create message JSON
             val messageJson = JSONObject().apply {
                 put("message", text)
                 put("timestamp", formattedTimestamp)
                 put("nick", "You")
                 put("ip", getLocalIpAddress())
+                put("from",deviceName)
             }
 
             // Add to local RecyclerView

@@ -6,5 +6,6 @@ data class Message(
     val timestamp: Long,
     val type: String,
     val nick: String,
-    val ip: String
+    val ip: String,
+    val from: String? = null
 )

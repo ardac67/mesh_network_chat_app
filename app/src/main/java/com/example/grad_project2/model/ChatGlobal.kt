@@ -5,5 +5,6 @@ data class ChatGlobal(
     val port: Int,
     val isHostMe: Boolean,
     val sessionName: String? = null,
-    var amIConnected: Boolean = false
+    var amIConnected: Boolean = false,
+    val deviceName : String ?= null
 )

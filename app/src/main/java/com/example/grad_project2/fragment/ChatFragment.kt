@@ -1,5 +1,6 @@
 package com.example.grad_project2.fragment
 
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
@@ -95,9 +96,11 @@ class ChatFragment : Fragment() {
 
         // Observe incoming messages from SharedViewModel
         sharedViewModel.incomingMessage.observe(viewLifecycleOwner) { message ->
-            messages.add(message)
-            adapter.notifyItemInserted(messages.size - 1)
-            messagesRecyclerView.scrollToPosition(messages.size - 1)
+            if(message.from.equals(peerName)){
+                messages.add(message)
+                adapter.notifyItemInserted(messages.size - 1)
+                messagesRecyclerView.scrollToPosition(messages.size - 1)
+            }
         }
 
         sendButton.setOnClickListener {
@@ -107,6 +110,7 @@ class ChatFragment : Fragment() {
 
     // Send a Message via Nearby Connections
     private fun sendMessage() {
+        val deviceName = "${Build.MANUFACTURER} ${Build.MODEL}"
         val text = messageEditText.text.toString().trim()
         if (text.isNotEmpty()) {
             val timestamp = System.currentTimeMillis()
@@ -118,6 +122,7 @@ class ChatFragment : Fragment() {
                 put("timestamp", formattedTimestamp)
                 put("nick", "You")
                 put("ip", getLocalIpAddress())
+                put("from",deviceName)
             }
 
             // Add to local RecyclerView
