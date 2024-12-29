@@ -7,5 +7,7 @@ data class Message(
     val type: String,
     val nick: String,
     val ip: String,
-    val from: String? = null
+    val from: String? = null,
+    val id:String? = null,
+    val relayedFrom:String? =null
 )

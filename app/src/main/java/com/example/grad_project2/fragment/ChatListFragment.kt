@@ -11,6 +11,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.ProgressBar
 import android.widget.Toast
 import androidx.core.app.ActivityCompat
@@ -57,9 +58,40 @@ class ChatListFragment : Fragment() {
     private lateinit var deviceUUID: String
     private lateinit var connectionProgressBar: ProgressBar
     private lateinit var localName:String
+    private val relayedMessages = mutableSetOf<String>()
 
 
     private val sharedViewModel: SharedChatViewModel by activityViewModels()
+
+    private fun relayMessage(receivedMessage: JSONObject) {
+        Log.d("RelayDebugWork","Inside of relay function")
+        val messageId = receivedMessage.getString("id") // Ensure each message has a unique 'id'
+        if (relayedMessages.contains(messageId)) {
+            Log.d("RelayMessages", "Message already relayed, skipping: $messageId")
+            return
+        }
+
+        // Mark message as relayed
+        relayedMessages.add(messageId)
+
+        val ip = receivedMessage.getString("ip")
+        connectedEndpoints.forEach { endPoint ->
+            if (endPoint != ip) {
+                Log.d("RelayDebugWork","Cannot match ip and endpoint")
+                receivedMessage.put("relayedFrom",deviceUUID)
+                val payload = Payload.fromBytes(receivedMessage.toString().toByteArray())
+                connectionsClient.sendPayload(endPoint, payload)
+                    .addOnSuccessListener {
+                        Log.d("RelayMessages", "Message relayed successfully to $endPoint")
+                    }
+                    .addOnFailureListener { e ->
+                        Log.e("RelayMessages", "Failed to send message: ${e.message}")
+                        Toast.makeText(context, "Failed to send message", Toast.LENGTH_SHORT).show()
+                    }
+            }
+        }
+    }
+
 
     private val payloadCallback = object : PayloadCallback() {
         override fun onPayloadReceived(endpointId: String, payload: Payload) {
@@ -70,11 +102,14 @@ class ChatListFragment : Fragment() {
                 return
             }
 
+            /*
             if (discoveredPeers.none { it.ip == endpointId }){
                 //Log.d("ZAART", "arrt: $receivedData")
                 discoveredPeers.add(ChatGlobal(endpointId, 8000, false, amIConnected = false))
                 adapter.notifyDataSetChanged()
             }
+
+             */
 
             Log.d("ChatListFragment", "Received payload: $receivedData")
             Log.d("ChatListFragment", "Payload received from $endpointId: $receivedData")
@@ -87,7 +122,7 @@ class ChatListFragment : Fragment() {
                     val nick = json.getString("nick")
                     val timestamp = json.getString("timestamp")
                     val ip = json.getString("ip")
-
+                    val relayedFrom = json.optString("relayedFrom")?.takeIf { it.isNotEmpty() } ?: "Unknown"
                     val message = Message(
                         text = msgText,
                         isSentByMe = false,
@@ -95,25 +130,34 @@ class ChatListFragment : Fragment() {
                         type = "string",
                         nick = nick,
                         ip = ip,
-                        from = json.getString("from")
+                        from = json.getString("from"),
+                        relayedFrom = relayedFrom
                     )
                     val chatPeer = discoveredPeers.find { it.deviceName == json.getString("from") }
                     Log.d("ardaaaaaaa", "$chatPeer")
-                    chatPeer?.let {
-                        it.lastMessage = msgText
-                        val position = discoveredPeers.indexOf(it)
-                        Log.d("ChatListFragment", "Updating lastMessage for peer at position $position: $msgText")
-                        if (position != -1) {
-                            activity?.runOnUiThread {
-                                adapter.notifyItemChanged(position)
+                    if (chatPeer != null) {
+                        if(chatPeer.amIConnected){
+                            chatPeer?.let {
+                                it.lastMessage = msgText
+                                val position = discoveredPeers.indexOf(it)
+                                Log.d("ChatListFragment", "Updating lastMessage for peer at position $position: $msgText")
+                                if (position != -1) {
+                                    activity?.runOnUiThread {
+                                        adapter.notifyItemChanged(position)
+                                    }
+                                } else {
+                                    Log.e("ChatListFragment", "Peer not found in list when trying to update lastMessage")
+                                }
                             }
-                        } else {
-                            Log.e("ChatListFragment", "Peer not found in list when trying to update lastMessage")
                         }
                     }
+
                     // Share the message with ChatFragment using ViewModel
                     sharedViewModel.postMessage(message)
-
+                    if(!deviceUUID.equals(json.getString("from"))){
+                        Log.d("Farting","Farting")
+                        relayMessage(json)
+                    }
                 } catch (e: org.json.JSONException) {
                     try {
                         val json = JSONObject(receivedData)
@@ -144,7 +188,7 @@ class ChatListFragment : Fragment() {
                         }
 
                         Log.d("MeshNetworkProcess", "Updated Graph Nodes: ${connectionGraph.keys}")
-                        displayGraph(deviceName)
+                        //displayGraph(deviceName)
 
                     } catch (e: JSONException) {
                         Log.e("ChatListFragment", "Failed to parse connections payload: ${e.message}")
@@ -205,6 +249,10 @@ class ChatListFragment : Fragment() {
         val createSession: FrameLayout = view.findViewById(R.id.createSession)
         createSession.setOnClickListener {
             refreshNearbyConnections()
+        }
+        val graphVisual:ImageView = view.findViewById((R.id.editIcon))
+        graphVisual.setOnClickListener{
+            displayGraph(deviceName)
         }
     }
 
@@ -308,8 +356,8 @@ class ChatListFragment : Fragment() {
                 }
 
                 override fun onEndpointLost(endpointId: String) {
-                    discoveredPeers.removeAll { !it.amIConnected && it.ip == endpointId }
-                    adapter.notifyDataSetChanged()
+                    //discoveredPeers.removeAll { !it.amIConnected && it.ip == endpointId }
+                    //adapter.notifyDataSetChanged()
                     Log.d("LogArda", "Lost connection to $endpointId")
                 }
             },
@@ -471,7 +519,7 @@ class ChatListFragment : Fragment() {
 
 
     fun renderNode(node: GraphNode, level: Int) {
-        Log.d("Zarting", " ".repeat(level * 2) + node.deviceId)
+        Log.d("GraphVisual", " ".repeat(level * 2) + node.deviceId)
         node.connections.forEach { renderNode(it, level + 1) }
     }
     private fun refreshNearbyConnections() {
@@ -490,6 +538,7 @@ class ChatListFragment : Fragment() {
         // Restart advertising and discovery
         startAdvertising()
         startDiscovery()
+        hideLoadingBar()
     }
     private fun showLoadingBar() {
         activity?.runOnUiThread {

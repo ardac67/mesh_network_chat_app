@@ -2,6 +2,7 @@ package com.example.grad_project2.fragment
 
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
@@ -27,6 +28,7 @@ import org.json.JSONObject
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.UUID
 
 class ChatFragment : Fragment() {
 
@@ -77,7 +79,7 @@ class ChatFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-
+        val deviceName = "${Build.MANUFACTURER} ${Build.MODEL}"
         // UI initialization
         messagesRecyclerView = view.findViewById(R.id.messagesRecyclerView)
         messageEditText = view.findViewById(R.id.messageEditText)
@@ -96,7 +98,9 @@ class ChatFragment : Fragment() {
 
         // Observe incoming messages from SharedViewModel
         sharedViewModel.incomingMessage.observe(viewLifecycleOwner) { message ->
-            if(message.from.equals(peerName) || message.from.equals("System")){
+            Log.d("MessageFROM","${message.relayedFrom}, ${peerName}")
+            if(message.from.equals(peerName) || message.from.equals("System")
+                || (message.relayedFrom.equals(peerName) && !message.from.equals(deviceName))){
                 messages.add(message)
                 adapter.notifyItemInserted(messages.size - 1)
                 messagesRecyclerView.scrollToPosition(messages.size - 1)
@@ -115,7 +119,7 @@ class ChatFragment : Fragment() {
         if (text.isNotEmpty()) {
             val timestamp = System.currentTimeMillis()
             val formattedTimestamp = formatTimestamp(timestamp)
-
+            val id = UUID.randomUUID().toString()
             // Create message JSON
             val messageJson = JSONObject().apply {
                 put("message", text)
@@ -123,6 +127,7 @@ class ChatFragment : Fragment() {
                 put("nick", "You")
                 put("ip", getLocalIpAddress())
                 put("from",deviceName)
+                put("id",id)
             }
 
             // Add to local RecyclerView
@@ -132,7 +137,8 @@ class ChatFragment : Fragment() {
                 timestamp = timestamp,
                 type = "string",
                 nick = "You",
-                ip = getLocalIpAddress()
+                ip = getLocalIpAddress(),
+                id = id
             )
             messages.add(newMessage)
             adapter.notifyItemInserted(messages.size - 1)
@@ -149,6 +155,15 @@ class ChatFragment : Fragment() {
                     Log.e("ChatFragment", "Failed to send message: ${e.message}")
                     Toast.makeText(context, "Failed to send message", Toast.LENGTH_SHORT).show()
                 }
+        }
+    }
+    fun generateDeviceUUID(): UUID {
+        val androidId =
+            Settings.Secure.getString(requireContext().contentResolver, Settings.Secure.ANDROID_ID)
+        return if (androidId != null && androidId.isNotEmpty()) {
+            UUID.nameUUIDFromBytes(androidId.toByteArray(Charsets.UTF_8))
+        } else {
+            UUID.randomUUID()
         }
     }
 
