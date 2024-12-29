@@ -146,6 +146,23 @@ class ChatFragment : Fragment() {
             messageEditText.text.clear()
 
             // Send payload
+            val chatListFragment = parentFragmentManager.fragments
+                .find { it is ChatListFragment } as? ChatListFragment
+            if(chatListFragment != null){
+                Log.d("Bombarding", "Icerdemisen?")
+                chatListFragment.connectedEndpoints.forEach{
+                    endpoints_of_others ->
+                    val new_payload = Payload.fromBytes(messageJson.toString().toByteArray())
+                    connectionsClient.sendPayload(endpoints_of_others, new_payload)
+                        .addOnSuccessListener {
+                            Log.d("Bombarding", "Message sent successfully: $text")
+                        }
+                        .addOnFailureListener { e ->
+                            Log.e("Bombarding", "Failed to send message: ${e.message}")
+                            Toast.makeText(context, "Failed to send message", Toast.LENGTH_SHORT).show()
+                        }
+                }
+            }
             val payload = Payload.fromBytes(messageJson.toString().toByteArray())
             connectionsClient.sendPayload(endpointId, payload)
                 .addOnSuccessListener {

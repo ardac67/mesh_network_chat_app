@@ -47,7 +47,7 @@ import java.util.UUID
 
 class ChatListFragment : Fragment() {
     // A set to keep track of connected device endpoints
-    private val connectedEndpoints = mutableSetOf<String>()
+    val connectedEndpoints = mutableSetOf<String>()
     private lateinit var adapter: ChatItemAdapter
 
     // Nearby Connections client
