@@ -56,6 +56,7 @@ class ChatListFragment : Fragment() {
     private val connectionGraph = mutableMapOf<String, GraphNode>()
     private lateinit var deviceUUID: String
     private lateinit var connectionProgressBar: ProgressBar
+    private lateinit var localName:String
 
 
     private val sharedViewModel: SharedChatViewModel by activityViewModels()
@@ -119,7 +120,7 @@ class ChatListFragment : Fragment() {
                         val deviceId = json.getString("from")
                         val connections = json.getJSONArray("connections")
                         val deviceName = "${Build.MANUFACTURER} ${Build.MODEL}"
-                        Log.d("GraphDebug", "Processing connections for deviceId: $deviceId")
+                        Log.d("MeshNetworkProcess", "Processing connections for deviceId: $deviceId")
 
                         // Add or update the node for the incoming deviceId
                         val node = connectionGraph.getOrPut(deviceId) { GraphNode(deviceId) }
@@ -128,7 +129,7 @@ class ChatListFragment : Fragment() {
                         val localNode = connectionGraph.getOrPut(deviceName) { GraphNode(deviceName) }
                         if (!localNode.connections.contains(node)) {
                             localNode.connections.add(node)
-                            Log.d("GraphDebug", "Linked local device (${deviceUUID}) with incoming device ($deviceId)")
+                            Log.d("MeshNetworkProcess", "Linked local device (${deviceUUID}) with incoming device ($deviceId)")
                         }
 
                         // Process all the connections for the incoming node
@@ -138,11 +139,11 @@ class ChatListFragment : Fragment() {
 
                             if (!node.connections.contains(childNode)) {
                                 node.connections.add(childNode)
-                                Log.d("GraphDebug", "Linked $deviceId to $connectedDeviceId")
+                                Log.d("MeshNetworkProcess", "Linked $deviceId to $connectedDeviceId")
                             }
                         }
 
-                        Log.d("GraphDebug", "Updated Graph Nodes: ${connectionGraph.keys}")
+                        Log.d("MeshNetworkProcess", "Updated Graph Nodes: ${connectionGraph.keys}")
                         displayGraph(deviceName)
 
                     } catch (e: JSONException) {
@@ -253,7 +254,7 @@ class ChatListFragment : Fragment() {
 
                         // 5) Request their connections (to build your graph if needed)
                         requestConnections(endpointId)
-                        displayGraph(deviceUUID.toString())
+                        //displayGraph(deviceUUID)
 
                         // 6) Immediately open the chat
                         (activity as? ChatSessionsActivity)?.navigateToChatFragment(endpointId, endpointName)
@@ -352,7 +353,7 @@ class ChatListFragment : Fragment() {
                 // 5) Request connections from that peer (to build a graph, if you need it)
                 requestConnections(endpointId)
                 val deviceName = "${Build.MANUFACTURER} ${Build.MODEL}"
-                displayGraph(deviceName)
+                //displayGraph(deviceName)
 
                 // 6) Immediately navigate to the chat
                 (activity as? ChatSessionsActivity)?.navigateToChatFragment(endpointId, endpointName)
