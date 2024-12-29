@@ -75,7 +75,7 @@ class ChatListFragment : Fragment() {
         relayedMessages.add(messageId)
 
         val ip = receivedMessage.getString("ip")
-        connectedEndpoints.forEach { endPoint ->
+        sharedViewModel.connectedEndpoints.value?.forEach { endPoint ->
             if (endPoint != ip) {
                 Log.d("RelayDebugWork","Cannot match ip and endpoint")
                 receivedMessage.put("relayedFrom",deviceUUID)
@@ -113,7 +113,7 @@ class ChatListFragment : Fragment() {
 
             Log.d("ChatListFragment", "Received payload: $receivedData")
             Log.d("ChatListFragment", "Payload received from $endpointId: $receivedData")
-            Log.d("ChatListFragment", "Current connected endpoints: $connectedEndpoints")
+            //Log.d("ChatListFragment", "Current connected endpoints: $connectedEndpoints")
 
             if (receivedData.startsWith("{") && receivedData.endsWith("}")) {
                 try {
@@ -288,7 +288,7 @@ class ChatListFragment : Fragment() {
                     if (result.status.isSuccess) {
                         // 1) Mark the endpoint as connected
                         hideLoadingBar()
-                        connectedEndpoints.add(endpointId)
+                        sharedViewModel.addConnection(endpointId)
                         discoveredPeers.firstOrNull { it.ip == endpointId }?.amIConnected = true
 
                         // 2) Log success
@@ -315,7 +315,7 @@ class ChatListFragment : Fragment() {
 
 
                 override fun onDisconnected(endpointId: String) {
-                    connectedEndpoints.remove(endpointId)
+                    sharedViewModel.removeConnection(endpointId)
                     Log.d("LogArda", "Disconnected from $endpointId")
                     discoveredPeers.firstOrNull { it.ip == endpointId }?.amIConnected = false
 
@@ -385,7 +385,7 @@ class ChatListFragment : Fragment() {
             if (result.status.isSuccess) {
                 // 1) Mark the endpoint as connected locally
                 hideLoadingBar()
-                connectedEndpoints.add(endpointId)
+                sharedViewModel.addConnection(endpointId)
                 discoveredPeers.firstOrNull { it.ip == endpointId }?.amIConnected = true
 
                 // 2) Log success
@@ -416,7 +416,7 @@ class ChatListFragment : Fragment() {
 
         override fun onDisconnected(endpointId: String) {
             Log.d("LogArda", "Disconnected from $endpointId")
-            connectedEndpoints.remove(endpointId)
+            sharedViewModel.removeConnection(endpointId)
             //Log.d("LogArda", "Disconnected from $endpointId")
             discoveredPeers.firstOrNull { it.ip == endpointId }?.amIConnected = false
 
@@ -471,7 +471,7 @@ class ChatListFragment : Fragment() {
         val deviceName = "${Build.MANUFACTURER} ${Build.MODEL}"
         val deviceInfo = JSONObject().apply {
             put("deviceId", deviceUUID)
-            put("connections", JSONArray(connectedEndpoints))
+            put("connections", JSONArray(sharedViewModel.connectedEndpoints.value))
             put("from",deviceName)
         }
         val payload = Payload.fromBytes(deviceInfo.toString().toByteArray())
@@ -532,7 +532,7 @@ class ChatListFragment : Fragment() {
 
         // Clear UI lists
         discoveredPeers.clear()
-        connectedEndpoints.clear()
+        sharedViewModel.clearConnections()
         adapter.notifyDataSetChanged()
 
         // Restart advertising and discovery
