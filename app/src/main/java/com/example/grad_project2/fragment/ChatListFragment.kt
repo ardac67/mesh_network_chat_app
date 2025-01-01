@@ -45,6 +45,7 @@ import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
 import java.util.UUID
+import com.example.grad_project2.Database.ChatDatabase
 
 class ChatListFragment : Fragment() {
     // A set to keep track of connected device endpoints
@@ -59,6 +60,9 @@ class ChatListFragment : Fragment() {
     private lateinit var deviceUUID: String
     private lateinit var connectionProgressBar: ProgressBar
     private lateinit var localName:String
+    private val chatDao by lazy {
+        ChatDatabase.getDatabase(requireContext()).chatDao()
+    }
     //
 
 
@@ -178,11 +182,12 @@ class ChatListFragment : Fragment() {
                     val timestamp = json.getString("timestamp")
                     val ip = json.getString("ip")
                     val notify = json.optString("notify")?.takeIf { it.isNotEmpty() } ?: "Unknown"
+                    val type = json.optString("type")?.takeIf { it.isNotEmpty() } ?: "string"
                     val message = Message(
                         text = msgText,
                         isSentByMe = false,
                         timestamp = System.currentTimeMillis(),
-                        type = "string",
+                        type = type,
                         nick = nick,
                         ip = ip,
                         from = json.getString("from"),
@@ -224,6 +229,7 @@ class ChatListFragment : Fragment() {
                         //}
                     }
                 } catch (e: org.json.JSONException) {
+                    Log.e("WhatIsException", "Failed to parse connections payload: ${e.message}")
                     try {
                         val json = JSONObject(receivedData)
                         val deviceId = json.getString("from")
@@ -510,11 +516,12 @@ class ChatListFragment : Fragment() {
     private fun requestBluetoothPermissions() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) { // Android 12+
             val permissions = arrayOf(
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.READ_EXTERNAL_STORAGE,
                 Manifest.permission.NEARBY_WIFI_DEVICES,
                 Manifest.permission.BLUETOOTH_SCAN,
                 Manifest.permission.BLUETOOTH_ADVERTISE,
-                Manifest.permission.BLUETOOTH_CONNECT,
-                Manifest.permission.ACCESS_FINE_LOCATION
+                Manifest.permission.BLUETOOTH_CONNECT
             )
 
             val missingPermissions = permissions.filter {

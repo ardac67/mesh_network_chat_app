@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
+    id("com.google.devtools.ksp") version "1.9.0-1.0.13" // Add KSP Plugin
 }
 
 android {
@@ -37,6 +38,8 @@ android {
     }
 }
 
+
+
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
@@ -46,7 +49,17 @@ dependencies {
     implementation(libs.androidx.navigation.fragment.ktx)
     implementation(libs.androidx.navigation.ui.ktx)
     implementation (libs.play.services.nearby.v1850)
-
+    implementation(libs.androidx.room.runtime.v252)
+    implementation(libs.androidx.room.ktx)
+    implementation(libs.play.services.location)
+    ksp(libs.androidx.room.compiler.v252) // Use KSP instead of kapt
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
+    implementation(libs.androidx.emoji2)
+    implementation(libs.androidx.emoji2.views)
+    implementation(libs.androidx.emoji2.views.helper)
+    implementation(libs.emoji.google)
+    implementation(libs.glide)
+    ksp("com.github.bumptech.glide:compiler:4.16.0")
+
 }

@@ -1,8 +1,16 @@
 package com.example.grad_project2.fragment
 
+import android.Manifest
+import android.app.Activity
+import android.app.AlertDialog
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.provider.MediaStore
 import android.provider.Settings
+import android.util.Base64
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
@@ -12,20 +20,34 @@ import android.widget.ImageView
 import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.example.grad_project2.Database.ChatDatabase
+import com.example.grad_project2.Database.ChatEntity
 import com.example.grad_project2.R
 import com.example.grad_project2.adapter.MessageAdapter
 import com.example.grad_project2.model.Message
 import com.example.grad_project2.viewmodel.SharedChatViewModel
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationServices
 import com.google.android.gms.nearby.Nearby
 import com.google.android.gms.nearby.connection.ConnectionsClient
 import com.google.android.gms.nearby.connection.Payload
 import com.google.android.gms.nearby.connection.PayloadCallback
 import com.google.android.gms.nearby.connection.PayloadTransferUpdate
+import com.vanniktech.emoji.EmojiManager
+import com.vanniktech.emoji.EmojiPopup
+import com.vanniktech.emoji.google.GoogleEmojiProvider
+import kotlinx.coroutines.launch
 import org.json.JSONObject
+import java.io.ByteArrayOutputStream
+import java.io.File
+import java.io.InputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -38,13 +60,26 @@ class ChatFragment : Fragment() {
     private lateinit var sendButton: ImageView
     private lateinit var bannerTextView: TextView
     private lateinit var topBannerSwitch: Switch
-
+    private lateinit var emojiPopup: EmojiPopup
+    private lateinit var fusedLocationClient: FusedLocationProviderClient
+    private val photoPickerLauncher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            if (result.resultCode == Activity.RESULT_OK) {
+                val selectedImageUri: Uri? = result.data?.data
+                selectedImageUri?.let {
+                    sendPhoto(it)
+                }
+            }
+        }
     val messages = mutableListOf<Message>()
     private lateinit var adapter: MessageAdapter
 
     private lateinit var connectionsClient: ConnectionsClient
     private lateinit var endpointId: String
     private lateinit var peerName: String
+    private val chatDao by lazy {
+        ChatDatabase.getDatabase(requireContext()).chatDao()
+    }
 
     companion object {
         private const val ARG_ENDPOINT_ID = "endpointId"
@@ -64,6 +99,8 @@ class ChatFragment : Fragment() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        EmojiManager.install(GoogleEmojiProvider())
+
         arguments?.let {
             endpointId = it.getString(ARG_ENDPOINT_ID) ?: ""
             peerName = it.getString(ARG_PEER_NAME) ?: "Unknown"
@@ -82,6 +119,12 @@ class ChatFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         val deviceName = "${Build.MANUFACTURER} ${Build.MODEL}"
+
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(requireContext())
+        val attachmentButton = view.findViewById<ImageView>(R.id.attachmentButton)
+        attachmentButton.setOnClickListener {
+            showAttachmentOptions()
+        }
         // UI initialization
         messagesRecyclerView = view.findViewById(R.id.messagesRecyclerView)
         messageEditText = view.findViewById(R.id.messageEditText)
@@ -94,6 +137,18 @@ class ChatFragment : Fragment() {
         messagesRecyclerView.adapter = adapter
         messagesRecyclerView.layoutManager = LinearLayoutManager(context).apply {
             stackFromEnd = true
+        }
+        val emojiButton = view.findViewById<ImageView>(R.id.emojiButton)
+
+        // Initialize EmojiPopup
+        emojiPopup = EmojiPopup.Builder.fromRootView(view)
+            .setOnEmojiPopupShownListener { emojiButton.setImageResource(R.drawable.face) }
+            .setOnEmojiPopupDismissListener { emojiButton.setImageResource(R.drawable.face) }
+            .build(messageEditText)
+
+        // Toggle Emoji Keyboard
+        emojiButton.setOnClickListener {
+            emojiPopup.toggle()
         }
 
         connectionsClient = Nearby.getConnectionsClient(requireContext())
@@ -116,6 +171,16 @@ class ChatFragment : Fragment() {
                 adapter.notifyItemInserted(messages.size - 1)
                 messagesRecyclerView.scrollToPosition(messages.size - 1)
 
+               val messageObj = JSONObject()
+                messageObj.put("to",deviceName)
+                messageObj.put("from",message.from)
+                messageObj.put("message",message.text)
+                messageObj.put("relayedFrom",message.relayedFrom)//maybe can cause a problem
+                messageObj.put("nick",message.nick)
+                messageObj.put("ip",message.ip)
+                messageObj.put("type",message.type)
+                insertMessageToDatabase(messageObj)
+
             }
             else{
                 if(message.from.equals(peerName) || message.from.equals("System")
@@ -128,9 +193,18 @@ class ChatFragment : Fragment() {
                         topBannerSwitch.isChecked = false
                         return@observe
                     }
+                    val messageObj = JSONObject()
+                    messageObj.put("to",deviceName)
+                    messageObj.put("from",message.from)
+                    messageObj.put("message",message.text)
+                    messageObj.put("relayedFrom",message.relayedFrom)
+                    messageObj.put("nick",message.nick)
+                    messageObj.put("ip",message.ip)
+                    messageObj.put("type",message.type)
                     messages.add(message)
                     adapter.notifyItemInserted(messages.size - 1)
                     messagesRecyclerView.scrollToPosition(messages.size - 1)
+                    insertMessageToDatabase(messageObj)
                 }
             }
         }
@@ -193,8 +267,159 @@ class ChatFragment : Fragment() {
                 sharedViewModel.setMessagesPrivacy(peerName,"private")
             }
         }
+        loadPeerChats(peerName)
+    }
+    private fun showAttachmentOptions() {
+        val options = arrayOf("Send Photo 📸", "Send Location 📍")
+        AlertDialog.Builder(requireContext())
+            .setTitle("Choose an Option")
+            .setItems(options) { _, which ->
+                when (which) {
+                    0 -> pickPhoto()
+                    1 -> sendLocation()
+                }
+            }
+            .show()
+    }
+    private fun pickPhoto() {
+        val intent = Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
+        photoPickerLauncher.launch(intent)
     }
 
+    // Send Photo to Chat
+
+    private fun sendPhoto(imageUri: Uri) {
+        val deviceName = "${Build.MANUFACTURER} ${Build.MODEL}"
+        val timestamp = System.currentTimeMillis()
+        val id = UUID.randomUUID().toString()
+
+        try {
+            // ✅ Step 1: Read the image data and encode it as Base64
+            val inputStream: InputStream? = context?.contentResolver?.openInputStream(imageUri)
+            val byteArrayOutputStream = ByteArrayOutputStream()
+            inputStream?.copyTo(byteArrayOutputStream)
+            val imageBytes = byteArrayOutputStream.toByteArray()
+            val base64Image = Base64.encodeToString(imageBytes, Base64.DEFAULT)
+
+            // ✅ Step 2: Create JSON Payload
+            val imageMessageJson = JSONObject().apply {
+                put("type", "photo")
+                put("message", base64Image) // Include image data directly
+                put("from", deviceName)
+                put("timestamp", timestamp)
+                put("id", id)
+                put("nick", "You")
+                put("ip", getLocalIpAddress())
+                put("to" , peerName)
+            }
+            sharedViewModel.relayedMessages.add(id)
+
+            // ✅ Step 3: Send JSON Payload
+            val payload = Payload.fromBytes(imageMessageJson.toString().toByteArray())
+            connectionsClient.sendPayload(endpointId, payload)
+                .addOnSuccessListener {
+                    Log.d("ChatFragment", "Photo sent successfully: $id")
+                }
+                .addOnFailureListener { e ->
+                    Log.e("ChatFragment", "Failed to send photo: ${e.message}")
+                }
+
+            // ✅ Step 4: Update Local Chat UI
+            messages.add(
+                Message(
+                    text = base64Image,
+                    isSentByMe = true,
+                    timestamp = timestamp,
+                    type = "photo",
+                    nick = "You",
+                    ip = getLocalIpAddress(),
+                    id = id,
+                )
+            )
+            adapter.notifyItemInserted(messages.size - 1)
+            messagesRecyclerView.scrollToPosition(messages.size - 1)
+            insertMessageToDatabase(imageMessageJson)
+
+        } catch (e: Exception) {
+            Log.e("ChatFragment", "Failed to send photo: ${e.message}")
+        }
+    }
+
+    private fun sendLocation() {
+        // Check for location permission
+        if (ContextCompat.checkSelfPermission(
+                requireContext(),
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED
+        ) {
+            // Permission is granted, fetch location
+            val deviceName = "${Build.MANUFACTURER} ${Build.MODEL}"
+            fusedLocationClient.lastLocation
+                .addOnSuccessListener { location ->
+                    location?.let {
+                        val locationJson = JSONObject().apply {
+                            put("type", "location")
+                            put("latitude", it.latitude)
+                            put("longitude", it.longitude)
+                            put("from", deviceName)
+                            put("timestamp", System.currentTimeMillis())
+                            put("id", UUID.randomUUID().toString())
+                            put("nick", "You")
+                            put("ip", getLocalIpAddress())
+                        }
+
+                        val payload = Payload.fromBytes(locationJson.toString().toByteArray())
+                        connectionsClient.sendPayload(endpointId, payload)
+                            .addOnSuccessListener {
+                                Log.d("ChatFragment", "Location sent successfully")
+                            }
+                            .addOnFailureListener { e ->
+                                Log.e("ChatFragment", "Failed to send location: ${e.message}")
+                            }
+
+                        messages.add(
+                            Message(
+                                text = "Location: Lat ${location.latitude}, Lng ${location.longitude}",
+                                isSentByMe = true,
+                                timestamp = System.currentTimeMillis(),
+                                type = "location",
+                                nick = "You",
+                                ip = getLocalIpAddress()
+                            )
+                        )
+                        adapter.notifyItemInserted(messages.size - 1)
+                        messagesRecyclerView.scrollToPosition(messages.size - 1)
+                    }
+                }
+                .addOnFailureListener { e ->
+                    Log.e("ChatFragment", "Failed to get location: ${e.message}")
+                    Toast.makeText(context, "Failed to get location", Toast.LENGTH_SHORT).show()
+                }
+        }
+    }
+    private fun loadPeerChats(peerName: String) {
+        lifecycleScope.launch {
+            getChatsWithPeer(peerName) { chats ->
+                //messages.clear()
+                chats.forEach {
+                    Log.d("DBTypeCheck", "Type: ${it.type}")
+                }
+                messages.addAll(chats.map {
+                    Message(
+                        text = it.text,
+                        isSentByMe = it.sender == "${Build.MANUFACTURER} ${Build.MODEL}",
+                        timestamp = it.timestamp,
+                        type = if (it.type.equals("photo") ) "photo" else "string",
+                        nick =  it.sender ?: it.nick ?: "Unknown",
+                        ip = it.ip,
+                        id = it.uuid ?: UUID.randomUUID().toString()
+                    )
+                })
+                adapter.notifyDataSetChanged()
+                messagesRecyclerView.scrollToPosition(messages.size - 1)
+            }
+        }
+    }
     // Send a Message via Nearby Connections
     private fun sendMessage() {
         val deviceName = "${Build.MANUFACTURER} ${Build.MODEL}"
@@ -211,6 +436,7 @@ class ChatFragment : Fragment() {
                 put("ip", getLocalIpAddress())
                 put("from",deviceName)
                 put("id",id)
+                put("to",peerName)
             }
 
             // Add to local RecyclerView
@@ -228,6 +454,7 @@ class ChatFragment : Fragment() {
             messagesRecyclerView.scrollToPosition(messages.size - 1)
             messageEditText.text.clear()
             sharedViewModel.relayedMessages.add(id)
+            insertMessageToDatabase(messageJson)
 
             // Send payload
             if(sharedViewModel.getMessagesPrivacy(peerName) == false){
@@ -262,58 +489,6 @@ class ChatFragment : Fragment() {
             }
         }
     }
-    fun generateDeviceUUID(): UUID {
-        val androidId =
-            Settings.Secure.getString(requireContext().contentResolver, Settings.Secure.ANDROID_ID)
-        return if (androidId != null && androidId.isNotEmpty()) {
-            UUID.nameUUIDFromBytes(androidId.toByteArray(Charsets.UTF_8))
-        } else {
-            UUID.randomUUID()
-        }
-    }
-
-    // Handle incoming messages
-    private val payloadCallback = object : PayloadCallback() {
-        override fun onPayloadReceived(endpointId: String, payload: Payload) {
-            val receivedData = payload.asBytes()?.let { String(it) }
-
-            if (receivedData == null) {
-                Log.e("ChatFragment", "Received null payload from $endpointId")
-                return
-            }
-
-            Log.d("ChatFragment", "Received payload: $receivedData")
-
-            try {
-                val json = JSONObject(receivedData)
-                val msgText = json.getString("message")
-                val nick = json.getString("nick")
-                val timestamp = json.getString("timestamp")
-                val ip = json.getString("ip")
-
-                val receivedMessage = Message(
-                    text = msgText,
-                    isSentByMe = false,
-                    timestamp = System.currentTimeMillis(),
-                    type = "string",
-                    nick = nick,
-                    ip = ip
-                )
-
-                activity?.runOnUiThread {
-                    messages.add(receivedMessage)
-                    adapter.notifyItemInserted(messages.size - 1)
-                    messagesRecyclerView.scrollToPosition(messages.size - 1)
-                }
-            } catch (e: Exception) {
-                Log.e("ChatFragment", "Failed to parse incoming message: ${e.message}")
-            }
-        }
-
-        override fun onPayloadTransferUpdate(endpointId: String, update: PayloadTransferUpdate) {
-            Log.d("ChatFragment", "Payload transfer update: ${update.bytesTransferred}")
-        }
-    }
 
     private fun formatTimestamp(timestamp: Long): String {
         val sdf = SimpleDateFormat("HH:mm", Locale.getDefault())
@@ -344,4 +519,40 @@ class ChatFragment : Fragment() {
         super.onDestroyView()
         Log.d("ChatFragment", "ChatFragment destroyed")
     }
+    private fun insertMessageToDatabase(messageJson: JSONObject) {
+        lifecycleScope.launch {
+            val newChat = ChatEntity(
+                text = messageJson.getString("message"),
+                ip = getLocalIpAddress(),
+                nick = messageJson.getString("nick"),
+                to = messageJson.getString("to"),
+                sender = messageJson.getString("from"),
+                relayedFrom = messageJson.optString("relayedFrom", null.toString()),
+                type = messageJson.optString("type", null.toString())
+            )
+            chatDao.insertChat(newChat)
+            Log.d("ChatFragment", "Message inserted into database:")
+        }
+    }
+    fun getChatsWithPeer(peerName: String, onResult: (List<ChatEntity>) -> Unit) {
+        //clearAllMessages()
+        lifecycleScope.launch {
+            val chats = chatDao.getChatsWithPeer(peerName)
+            onResult(chats)
+        }
+    }
+    private fun clearAllMessages() {
+        lifecycleScope.launch {
+            try {
+                chatDao.deleteAllChats()
+                messages.clear()
+                adapter.notifyDataSetChanged()
+                Toast.makeText(context, "All messages have been cleared.", Toast.LENGTH_SHORT).show()
+                Log.d("ChatFragment", "All messages deleted successfully")
+            } catch (e: Exception) {
+                Log.e("ChatFragment", "Failed to clear messages: ${e.message}")
+            }
+        }
+    }
+
 }
