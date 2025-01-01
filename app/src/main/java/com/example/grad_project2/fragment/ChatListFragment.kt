@@ -183,6 +183,8 @@ class ChatListFragment : Fragment() {
                     val ip = json.getString("ip")
                     val notify = json.optString("notify")?.takeIf { it.isNotEmpty() } ?: "Unknown"
                     val type = json.optString("type")?.takeIf { it.isNotEmpty() } ?: "string"
+                    val latitude = if (json.has("latitude") && !json.isNull("latitude")) json.optDouble("latitude") else null
+                    val longitude = if (json.has("longitude") && !json.isNull("longitude")) json.optDouble("longitude") else null
                     val message = Message(
                         text = msgText,
                         isSentByMe = false,
@@ -192,7 +194,9 @@ class ChatListFragment : Fragment() {
                         ip = ip,
                         from = json.getString("from"),
                         relayedFrom = relayedFrom,
-                        notify = notify
+                        notify = notify,
+                        latitude = latitude,
+                        longitude =longitude
                     )
                     val chatPeer = discoveredPeers.find { it.deviceName == json.getString("from") }
                     Log.d("ardaaaaaaa", "$chatPeer")

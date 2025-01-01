@@ -357,6 +357,7 @@ class ChatFragment : Fragment() {
             fusedLocationClient.lastLocation
                 .addOnSuccessListener { location ->
                     location?.let {
+                        Log.d("ChatFragment", "${it.latitude} ${it.longitude}")
                         val locationJson = JSONObject().apply {
                             put("type", "location")
                             put("latitude", it.latitude)
@@ -366,12 +367,13 @@ class ChatFragment : Fragment() {
                             put("id", UUID.randomUUID().toString())
                             put("nick", "You")
                             put("ip", getLocalIpAddress())
+                            put("message","My location")
                         }
 
                         val payload = Payload.fromBytes(locationJson.toString().toByteArray())
                         connectionsClient.sendPayload(endpointId, payload)
                             .addOnSuccessListener {
-                                Log.d("ChatFragment", "Location sent successfully")
+                                Log.d("ChatFragment", "Location sent successfully ")
                             }
                             .addOnFailureListener { e ->
                                 Log.e("ChatFragment", "Failed to send location: ${e.message}")
@@ -384,7 +386,9 @@ class ChatFragment : Fragment() {
                                 timestamp = System.currentTimeMillis(),
                                 type = "location",
                                 nick = "You",
-                                ip = getLocalIpAddress()
+                                ip = getLocalIpAddress(),
+                                latitude = it.latitude,
+                                longitude = it.longitude
                             )
                         )
                         adapter.notifyItemInserted(messages.size - 1)

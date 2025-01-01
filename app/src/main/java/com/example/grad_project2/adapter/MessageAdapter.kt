@@ -128,26 +128,37 @@ class MessageAdapter(private val messages: List<Message>) : RecyclerView.Adapter
         }
     }
     class SentLocationViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        private val locationTextView: TextView = itemView.findViewById(R.id.sentLocationTextView)
+        private val locationImageView: ImageView = itemView.findViewById(R.id.sentLocationPlaceholder)
+        private val locationTextView: TextView = itemView.findViewById(R.id.sentLocationOverlay)
 
         fun bind(message: Message) {
-            locationTextView.text = message.text
-        }
-    }
+            locationTextView.text = "📍 Lat: ${message.latitude}, Lng: ${message.longitude}"
 
-    class ReceivedLocationViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        private val locationTextView: TextView = itemView.findViewById(R.id.receivedLocationTextView)
-
-        fun bind(message: Message) {
-            locationTextView.text = message.text
             itemView.setOnClickListener {
-                val uri = Uri.parse("geo:0,0?q=${message.text}")
+                val uri = Uri.parse("geo:${message.latitude},${message.longitude}?q=${message.latitude},${message.longitude}")
                 val intent = Intent(Intent.ACTION_VIEW, uri)
                 intent.setPackage("com.google.android.apps.maps")
                 itemView.context.startActivity(intent)
             }
         }
     }
+
+
+    class ReceivedLocationViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        private val locationImageView: ImageView = itemView.findViewById(R.id.receivedLocationPlaceholder)
+        private val locationTextView: TextView = itemView.findViewById(R.id.receivedLocationOverlay)
+
+        fun bind(message: Message) {
+            locationTextView.text = "📍 Lat: ${message.latitude}, Lng: ${message.longitude}"
+            itemView.setOnClickListener {
+                val uri = Uri.parse("geo:${message.latitude},${message.longitude}?q=${message.latitude},${message.longitude}")
+                val intent = Intent(Intent.ACTION_VIEW, uri)
+                intent.setPackage("com.google.android.apps.maps")
+                itemView.context.startActivity(intent)
+            }
+        }
+    }
+
 
 
     override fun getItemCount(): Int = messages.size

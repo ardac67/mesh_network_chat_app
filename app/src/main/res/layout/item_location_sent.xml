@@ -6,32 +6,36 @@
     android:layout_height="wrap_content"
     android:padding="8dp">
 
-    <LinearLayout
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="8dp"
+    <!-- FrameLayout for Map Placeholder and Overlay -->
+    <FrameLayout
+        android:id="@+id/sentLocationFrame"
+        android:layout_width="200dp"
+        android:layout_height="150dp"
         android:layout_margin="4dp"
-        android:elevation="2dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintBottom_toBottomOf="parent">
 
+        <!-- Placeholder Image for Map -->
         <ImageView
-            android:id="@+id/sentLocationImageView"
-            android:layout_width="200dp"
-            android:layout_height="150dp"
+            android:id="@+id/sentLocationPlaceholder"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
             android:scaleType="centerCrop"
-            android:contentDescription="Sent Location Image"
-            android:layout_marginBottom="4dp"/>
+            android:contentDescription="Map Placeholder" />
 
+        <!-- Coordinates Overlay Text -->
         <TextView
-            android:id="@+id/sentLocationTextView"
+            android:id="@+id/sentLocationOverlay"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="📍 Shared Location"
-            android:textSize="14sp"
-            android:textColor="@android:color/black"
-            android:textStyle="bold"/>
-    </LinearLayout>
+            android:text="📍 Lat: 37.42, Lng: -122.08"
+            android:textColor="@android:color/white"
+            android:textStyle="bold"
+            android:layout_gravity="center"
+            android:background="#66000000"
+            android:padding="4dp"/>
+    </FrameLayout>
+
 </androidx.constraintlayout.widget.ConstraintLayout>
+
