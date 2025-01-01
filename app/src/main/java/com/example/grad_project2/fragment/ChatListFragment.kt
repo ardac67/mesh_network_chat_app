@@ -14,6 +14,7 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.ProgressBar
 import android.widget.Toast
+import androidx.annotation.RequiresApi
 import androidx.core.app.ActivityCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
@@ -58,7 +59,7 @@ class ChatListFragment : Fragment() {
     private lateinit var deviceUUID: String
     private lateinit var connectionProgressBar: ProgressBar
     private lateinit var localName:String
-    private val relayedMessages = mutableSetOf<String>()
+    //
 
 
     private val sharedViewModel: SharedChatViewModel by activityViewModels()
@@ -66,17 +67,21 @@ class ChatListFragment : Fragment() {
     private fun relayMessage(receivedMessage: JSONObject) {
         Log.d("RelayDebugWork","Inside of relay function")
         val messageId = receivedMessage.getString("id") // Ensure each message has a unique 'id'
-        if (relayedMessages.contains(messageId)) {
+        if (sharedViewModel.relayedMessages.contains(messageId)) {
             Log.d("RelayMessages", "Message already relayed, skipping: $messageId")
             return
         }
 
         // Mark message as relayed
-        relayedMessages.add(messageId)
-
+        sharedViewModel.relayedMessages.add(messageId)
+        val connectedPeerNames = discoveredPeers
+            .filter { it.amIConnected } // Filter only connected peers
+            .map { it.deviceName } // Extract the device names
         val ip = receivedMessage.getString("ip")
+        /*
         sharedViewModel.connectedEndpoints.value?.forEach { endPoint ->
             if (endPoint != ip) {
+                //sharedViewModel.publicConnections.
                 Log.d("RelayDebugWork","Cannot match ip and endpoint")
                 receivedMessage.put("relayedFrom",deviceUUID)
                 val payload = Payload.fromBytes(receivedMessage.toString().toByteArray())
@@ -90,6 +95,39 @@ class ChatListFragment : Fragment() {
                     }
             }
         }
+         */
+        // Step 1: Filter connected peers that are also in publicConnections
+        val validPeers = discoveredPeers
+            .filter { it.amIConnected && sharedViewModel.publicConnections.contains(it.deviceName) } // Ensure connection and publicity
+
+// Step 2: Iterate over connectedEndpoints and match with valid peers
+        //val ip = receivedMessage.getString("ip")
+
+        sharedViewModel.connectedEndpoints.value?.forEach { endPoint ->
+            if (endPoint != ip) {
+                // Find the corresponding ChatGlobal object
+                val targetPeer = validPeers.find { it.ip == endPoint }
+
+                if (targetPeer != null) {
+                    Log.d(" ", "Relaying message to valid public endpoint: $endPoint")
+
+                    receivedMessage.put("relayedFrom", deviceUUID)
+                    val payload = Payload.fromBytes(receivedMessage.toString().toByteArray())
+
+                    connectionsClient.sendPayload(endPoint, payload)
+                        .addOnSuccessListener {
+                            Log.d("RelayMessages", "Message relayed successfully to $endPoint")
+                        }
+                        .addOnFailureListener { e ->
+                            Log.e("RelayMessages", "Failed to send message: ${e.message}")
+                            Toast.makeText(context, "Failed to send message", Toast.LENGTH_SHORT).show()
+                        }
+                } else {
+                    Log.d("RelayDebugWork", "Endpoint $endPoint is not in valid public connections.")
+                }
+            }
+        }
+
     }
 
 
@@ -118,11 +156,28 @@ class ChatListFragment : Fragment() {
             if (receivedData.startsWith("{") && receivedData.endsWith("}")) {
                 try {
                     val json = JSONObject(receivedData)
+                    val relayedFrom = json.optString("relayedFrom")?.takeIf { it.isNotEmpty() } ?: "Unknown"
+                    if(sharedViewModel.relayedMessages.contains(json.getString("id"))){
+                        return
+                    }
+                    val notifyValue = json.optString("notify", "")
+                    if(notifyValue.equals("public")){
+                        val whereItIS = json.getString("from")
+                        sharedViewModel.setMessagesPrivacy(whereItIS,"public")
+                        sharedViewModel.publicConnections.add(whereItIS)
+                        //return
+                    }
+                    else if(notifyValue.equals("private")){
+                        val whereItIS = json.getString("from")
+                        sharedViewModel.setMessagesPrivacy(whereItIS,"private")
+                        sharedViewModel.publicConnections.remove(whereItIS)
+                        //return
+                    }
                     val msgText = json.getString("message")
                     val nick = json.getString("nick")
                     val timestamp = json.getString("timestamp")
                     val ip = json.getString("ip")
-                    val relayedFrom = json.optString("relayedFrom")?.takeIf { it.isNotEmpty() } ?: "Unknown"
+                    val notify = json.optString("notify")?.takeIf { it.isNotEmpty() } ?: "Unknown"
                     val message = Message(
                         text = msgText,
                         isSentByMe = false,
@@ -131,7 +186,8 @@ class ChatListFragment : Fragment() {
                         nick = nick,
                         ip = ip,
                         from = json.getString("from"),
-                        relayedFrom = relayedFrom
+                        relayedFrom = relayedFrom,
+                        notify = notify
                     )
                     val chatPeer = discoveredPeers.find { it.deviceName == json.getString("from") }
                     Log.d("ardaaaaaaa", "$chatPeer")
@@ -154,9 +210,18 @@ class ChatListFragment : Fragment() {
 
                     // Share the message with ChatFragment using ViewModel
                     sharedViewModel.postMessage(message)
-                    if(!deviceUUID.equals(json.getString("from"))){
+                    if(!deviceUUID.equals(json.getString("from")) && sharedViewModel.getMessagesPrivacy(json.getString("from")) == true){
                         Log.d("Farting","Farting")
-                        relayMessage(json)
+                        //discoveredPeers.forEach{
+                            //chatGlobal ->
+                            //if(sharedViewModel.publicConnections.contains(chatGlobal.deviceName)){
+                                //Log.d("I will relay to device:","${chatGlobal.deviceName}")
+                                    if(notifyValue==""){
+                                        relayMessage(json)
+                                    }
+
+                            //}
+                        //}
                     }
                 } catch (e: org.json.JSONException) {
                     try {
@@ -218,6 +283,7 @@ class ChatListFragment : Fragment() {
         return inflater.inflate(R.layout.fragment_chat_list, container, false)
     }
 
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         val deviceName = "${Build.MANUFACTURER} ${Build.MODEL}"
@@ -296,6 +362,7 @@ class ChatListFragment : Fragment() {
 
                         // 3) Retrieve the friendly name
                         val endpointName = discoveredPeers.firstOrNull { it.ip == endpointId }?.deviceName ?: "Unknown Device"
+                        sharedViewModel.mapNameEndpoint[endpointId] = endpointName
                         Log.d("LogArda", "Successfully connected to $endpointName")
                         // 4) Share your existing connections with the newly connected peer
                         shareConnectionsWithPeer(endpointId)
@@ -303,7 +370,7 @@ class ChatListFragment : Fragment() {
                         // 5) Request their connections (to build your graph if needed)
                         requestConnections(endpointId)
                         //displayGraph(deviceUUID)
-
+                        sharedViewModel.addMessagesPrivacy(endpointName,false)
                         // 6) Immediately open the chat
                         (activity as? ChatSessionsActivity)?.navigateToChatFragment(endpointId, endpointName)
                     }
@@ -395,6 +462,8 @@ class ChatListFragment : Fragment() {
                 val endpointName = discoveredPeers.firstOrNull { it.ip == endpointId }?.deviceName
                     ?: "Unknown Device"
                 Log.d("LogArda", "Successfully connected to $endpointName")
+                sharedViewModel.addMessagesPrivacy(endpointName,false)
+                sharedViewModel.mapNameEndpoint[endpointId] = endpointName
                 // 4) Share existing connections with the newly connected peer
                 shareConnectionsWithPeer(endpointId)
 
@@ -437,9 +506,11 @@ class ChatListFragment : Fragment() {
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     private fun requestBluetoothPermissions() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) { // Android 12+
             val permissions = arrayOf(
+                Manifest.permission.NEARBY_WIFI_DEVICES,
                 Manifest.permission.BLUETOOTH_SCAN,
                 Manifest.permission.BLUETOOTH_ADVERTISE,
                 Manifest.permission.BLUETOOTH_CONNECT,

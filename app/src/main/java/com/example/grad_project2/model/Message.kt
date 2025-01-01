@@ -9,5 +9,6 @@ data class Message(
     val ip: String,
     val from: String? = null,
     val id:String? = null,
-    val relayedFrom:String? =null
+    val relayedFrom:String? =null,
+    val notify:String? =null
 )

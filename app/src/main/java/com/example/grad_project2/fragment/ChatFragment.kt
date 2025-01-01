@@ -9,6 +9,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
 import android.widget.ImageView
+import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
@@ -36,6 +37,7 @@ class ChatFragment : Fragment() {
     private lateinit var messageEditText: EditText
     private lateinit var sendButton: ImageView
     private lateinit var bannerTextView: TextView
+    private lateinit var topBannerSwitch: Switch
 
     val messages = mutableListOf<Message>()
     private lateinit var adapter: MessageAdapter
@@ -85,7 +87,7 @@ class ChatFragment : Fragment() {
         messageEditText = view.findViewById(R.id.messageEditText)
         sendButton = view.findViewById(R.id.sendButton)
         bannerTextView = view.findViewById(R.id.topBannerText)
-
+        topBannerSwitch = view.findViewById(R.id.topBannerSwitch)
         bannerTextView.text = "Connected to $peerName"
 
         adapter = MessageAdapter(messages)
@@ -99,16 +101,97 @@ class ChatFragment : Fragment() {
         // Observe incoming messages from SharedViewModel
         sharedViewModel.incomingMessage.observe(viewLifecycleOwner) { message ->
             Log.d("MessageFROM","${message.relayedFrom}, ${peerName}")
-            if(message.from.equals(peerName) || message.from.equals("System")
-                || (message.relayedFrom.equals(peerName) && !message.from.equals(deviceName))){
+            if(sharedViewModel.getMessagesPrivacy(peerName) == true){
+                if(message.notify.equals("public")){
+                    topBannerSwitch.isChecked = true
+                    sharedViewModel.publicConnections.add(peerName)
+                    return@observe
+                }
+                else if(message.notify.equals("private")){
+                    topBannerSwitch.isChecked = false
+                    sharedViewModel.publicConnections.remove(peerName)
+                    return@observe
+                }
                 messages.add(message)
                 adapter.notifyItemInserted(messages.size - 1)
                 messagesRecyclerView.scrollToPosition(messages.size - 1)
+
+            }
+            else{
+                if(message.from.equals(peerName) || message.from.equals("System")
+                    || (message.relayedFrom.equals(peerName) && !message.from.equals(deviceName))){
+                    if(message.notify.equals("public")){
+                        topBannerSwitch.isChecked = true
+                        return@observe
+                    }
+                    else if(message.notify.equals("private")){
+                        topBannerSwitch.isChecked = false
+                        return@observe
+                    }
+                    messages.add(message)
+                    adapter.notifyItemInserted(messages.size - 1)
+                    messagesRecyclerView.scrollToPosition(messages.size - 1)
+                }
             }
         }
 
         sendButton.setOnClickListener {
             sendMessage()
+        }
+        topBannerSwitch.setOnCheckedChangeListener { _, isChecked ->
+            val deviceName = "${Build.MANUFACTURER} ${Build.MODEL}"
+            if (isChecked) {
+                val timestamp = System.currentTimeMillis()
+                val formattedTimestamp = formatTimestamp(timestamp)
+                val id = UUID.randomUUID().toString()
+                // Create message JSON
+                val messageJson = JSONObject().apply {
+                    put("message", "public")
+                    put("timestamp", formattedTimestamp)
+                    put("nick", "You")
+                    put("ip", getLocalIpAddress())
+                    put("from",deviceName)
+                    put("id",id)
+                    put("notify","public")
+                }
+
+                val payload = Payload.fromBytes(messageJson.toString().toByteArray())
+                connectionsClient.sendPayload(endpointId, payload)
+                    .addOnSuccessListener {
+                        Log.d("ChatFragment", "Message sent successfully: chat made by public")
+                    }
+                    .addOnFailureListener { e ->
+                        Log.e("ChatFragment", "Failed to send message: ${e.message}")
+                        Toast.makeText(context, "Failed to send message", Toast.LENGTH_SHORT).show()
+                    }
+                sharedViewModel.setMessagesPrivacy(peerName,"public")
+
+            } else {
+                val timestamp = System.currentTimeMillis()
+                val formattedTimestamp = formatTimestamp(timestamp)
+                val id = UUID.randomUUID().toString()
+                // Create message JSON
+                val messageJson = JSONObject().apply {
+                    put("message", "private")
+                    put("timestamp", formattedTimestamp)
+                    put("nick", "You")
+                    put("ip", getLocalIpAddress())
+                    put("from",deviceName)
+                    put("id",id)
+                    put("notify","private")
+                }
+
+                val payload = Payload.fromBytes(messageJson.toString().toByteArray())
+                connectionsClient.sendPayload(endpointId, payload)
+                    .addOnSuccessListener {
+                        Log.d("ChatFragment", "Message sent successfully: chat made by private")
+                    }
+                    .addOnFailureListener { e ->
+                        Log.e("ChatFragment", "Failed to send message: ${e.message}")
+                        Toast.makeText(context, "Failed to send message", Toast.LENGTH_SHORT).show()
+                    }
+                sharedViewModel.setMessagesPrivacy(peerName,"private")
+            }
         }
     }
 
@@ -144,32 +227,39 @@ class ChatFragment : Fragment() {
             adapter.notifyItemInserted(messages.size - 1)
             messagesRecyclerView.scrollToPosition(messages.size - 1)
             messageEditText.text.clear()
+            sharedViewModel.relayedMessages.add(id)
 
             // Send payload
-            Log.d("Bombarding", "Icerdemisen?")
-            sharedViewModel.connectedEndpoints.value?.forEach{
-                endpoints_of_others ->
-                val new_payload = Payload.fromBytes(messageJson.toString().toByteArray())
-                connectionsClient.sendPayload(endpoints_of_others, new_payload)
-
+            if(sharedViewModel.getMessagesPrivacy(peerName) == false){
+                val payload = Payload.fromBytes(messageJson.toString().toByteArray())
+                connectionsClient.sendPayload(endpointId, payload)
                     .addOnSuccessListener {
-                        Log.d("Bombarding", "Message sent successfully: $text")
+                        Log.d("ChatFragment", "Message sent successfully: $text")
                     }
                     .addOnFailureListener { e ->
-                        Log.e("Bombarding", "Failed to send message: ${e.message}")
+                        Log.e("ChatFragment", "Failed to send message: ${e.message}")
                         Toast.makeText(context, "Failed to send message", Toast.LENGTH_SHORT).show()
                     }
             }
+            else{
+                Log.d("Bombarding", "Icerdemisen?")
+                sharedViewModel.connectedEndpoints.value?.forEach{
+                        endpoints_of_others ->
+                    val new_payload = Payload.fromBytes(messageJson.toString().toByteArray())
+                    val checkForPublicity=sharedViewModel.mapNameEndpoint.get(endpoints_of_others)
+                    if(sharedViewModel.publicConnections.contains(checkForPublicity)){
+                        connectionsClient.sendPayload(endpoints_of_others, new_payload)
+                            .addOnSuccessListener {
+                                Log.d("Bombarding", "Message sent successfully: $text")
+                            }
+                            .addOnFailureListener { e ->
+                                Log.e("Bombarding", "Failed to send message: ${e.message}")
+                                Toast.makeText(context, "Failed to send message", Toast.LENGTH_SHORT).show()
+                            }
+                    }
 
-            val payload = Payload.fromBytes(messageJson.toString().toByteArray())
-            connectionsClient.sendPayload(endpointId, payload)
-                .addOnSuccessListener {
-                    Log.d("ChatFragment", "Message sent successfully: $text")
                 }
-                .addOnFailureListener { e ->
-                    Log.e("ChatFragment", "Failed to send message: ${e.message}")
-                    Toast.makeText(context, "Failed to send message", Toast.LENGTH_SHORT).show()
-                }
+            }
         }
     }
     fun generateDeviceUUID(): UUID {
