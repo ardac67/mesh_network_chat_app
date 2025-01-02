@@ -14,5 +14,7 @@ data class ChatEntity(
     val nick:String?= null,
     val timestamp: Long = System.currentTimeMillis(),
     val to:String,
-    val type:String?=null
+    val type:String?=null,
+    val latitude:Double?=null,
+    val longitude:Double?=null
 )

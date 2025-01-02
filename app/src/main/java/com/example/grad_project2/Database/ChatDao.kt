@@ -17,8 +17,7 @@ interface ChatDao {
     WHERE sender = :peerName
     OR relayedFrom = :peerName 
     OR `to` = :peerName
-    ORDER BY timestamp ASC
-    LIMIT 10;
+    ORDER BY timestamp ASC;
 """)
     suspend fun getChatsWithPeer(peerName: String): List<ChatEntity>
 

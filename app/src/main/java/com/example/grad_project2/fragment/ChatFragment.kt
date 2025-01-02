@@ -120,6 +120,7 @@ class ChatFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         val deviceName = "${Build.MANUFACTURER} ${Build.MODEL}"
 
+
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(requireContext())
         val attachmentButton = view.findViewById<ImageView>(R.id.attachmentButton)
         attachmentButton.setOnClickListener {
@@ -133,11 +134,16 @@ class ChatFragment : Fragment() {
         topBannerSwitch = view.findViewById(R.id.topBannerSwitch)
         bannerTextView.text = "Connected to $peerName"
 
+        if(sharedViewModel.getMessagesPrivacy(peerName) == true){
+            topBannerSwitch.isChecked = true
+        }
+        else{
+            topBannerSwitch.isChecked = false
+        }
         adapter = MessageAdapter(messages)
         messagesRecyclerView.adapter = adapter
         messagesRecyclerView.layoutManager = LinearLayoutManager(context).apply {
-            stackFromEnd = true
-        }
+            stackFromEnd = true        }
         val emojiButton = view.findViewById<ImageView>(R.id.emojiButton)
 
         // Initialize EmojiPopup
@@ -156,6 +162,7 @@ class ChatFragment : Fragment() {
         // Observe incoming messages from SharedViewModel
         sharedViewModel.incomingMessage.observe(viewLifecycleOwner) { message ->
             Log.d("MessageFROM","${message.relayedFrom}, ${peerName}")
+            Log.d("MessageOBJLOCATION","${message}")
             if(sharedViewModel.getMessagesPrivacy(peerName) == true){
                 if(message.notify.equals("public")){
                     topBannerSwitch.isChecked = true
@@ -179,6 +186,11 @@ class ChatFragment : Fragment() {
                 messageObj.put("nick",message.nick)
                 messageObj.put("ip",message.ip)
                 messageObj.put("type",message.type)
+                messageObj.put("latitude",message.latitude)
+                messageObj.put("longitude",message.longitude)
+
+
+                Log.d("MessageOBJLOCATION","$messageObj")
                 insertMessageToDatabase(messageObj)
 
             }
@@ -201,6 +213,9 @@ class ChatFragment : Fragment() {
                     messageObj.put("nick",message.nick)
                     messageObj.put("ip",message.ip)
                     messageObj.put("type",message.type)
+                    messageObj.put("latitude",message.latitude)
+                    messageObj.put("longitude",message.longitude)
+
                     messages.add(message)
                     adapter.notifyItemInserted(messages.size - 1)
                     messagesRecyclerView.scrollToPosition(messages.size - 1)
@@ -294,10 +309,29 @@ class ChatFragment : Fragment() {
         val id = UUID.randomUUID().toString()
 
         try {
-            // ✅ Step 1: Read the image data and encode it as Base64
+            // ✅ Step 1: Read and Validate Image
             val inputStream: InputStream? = context?.contentResolver?.openInputStream(imageUri)
+            if (inputStream == null) {
+                Log.e("ChatFragment", "Failed to open image stream")
+                return
+            }
+
             val byteArrayOutputStream = ByteArrayOutputStream()
-            inputStream?.copyTo(byteArrayOutputStream)
+            val buffer = ByteArray(1024)
+            var bytesRead: Int
+            var totalBytes = 0
+            val maxPayloadSize = 512 * 1024 // Example: 512KB size limit for Nearby Devices API
+
+            while (inputStream.read(buffer).also { bytesRead = it } != -1) {
+                totalBytes += bytesRead
+                if (totalBytes > maxPayloadSize) {
+                    Log.e("ChatFragment", "Image exceeds maximum allowed size: $maxPayloadSize bytes")
+                    inputStream.close()
+                    return
+                }
+                byteArrayOutputStream.write(buffer, 0, bytesRead)
+            }
+
             val imageBytes = byteArrayOutputStream.toByteArray()
             val base64Image = Base64.encodeToString(imageBytes, Base64.DEFAULT)
 
@@ -310,8 +344,9 @@ class ChatFragment : Fragment() {
                 put("id", id)
                 put("nick", "You")
                 put("ip", getLocalIpAddress())
-                put("to" , peerName)
+                put("to", peerName)
             }
+
             sharedViewModel.relayedMessages.add(id)
 
             // ✅ Step 3: Send JSON Payload
@@ -340,10 +375,16 @@ class ChatFragment : Fragment() {
             messagesRecyclerView.scrollToPosition(messages.size - 1)
             insertMessageToDatabase(imageMessageJson)
 
+        } catch (e: OutOfMemoryError) {
+            Log.e("ChatFragment", "Out of memory while processing image: ${e.message}")
+            Toast.makeText(context, "Error: Image is too large to process!", Toast.LENGTH_LONG).show()
         } catch (e: Exception) {
             Log.e("ChatFragment", "Failed to send photo: ${e.message}")
+            Toast.makeText(context, "Failed to send photo: ${e.message}", Toast.LENGTH_LONG).show()
         }
+
     }
+
 
     private fun sendLocation() {
         // Check for location permission
@@ -354,6 +395,7 @@ class ChatFragment : Fragment() {
         ) {
             // Permission is granted, fetch location
             val deviceName = "${Build.MANUFACTURER} ${Build.MODEL}"
+            val id = UUID.randomUUID().toString()
             fusedLocationClient.lastLocation
                 .addOnSuccessListener { location ->
                     location?.let {
@@ -364,10 +406,11 @@ class ChatFragment : Fragment() {
                             put("longitude", it.longitude)
                             put("from", deviceName)
                             put("timestamp", System.currentTimeMillis())
-                            put("id", UUID.randomUUID().toString())
+                            put("id", id)
                             put("nick", "You")
                             put("ip", getLocalIpAddress())
                             put("message","My location")
+                            put("to",peerName)
                         }
 
                         val payload = Payload.fromBytes(locationJson.toString().toByteArray())
@@ -393,6 +436,8 @@ class ChatFragment : Fragment() {
                         )
                         adapter.notifyItemInserted(messages.size - 1)
                         messagesRecyclerView.scrollToPosition(messages.size - 1)
+                        insertMessageToDatabase(locationJson)
+                        sharedViewModel.relayedMessages.add(id)
                     }
                 }
                 .addOnFailureListener { e ->
@@ -413,10 +458,12 @@ class ChatFragment : Fragment() {
                         text = it.text,
                         isSentByMe = it.sender == "${Build.MANUFACTURER} ${Build.MODEL}",
                         timestamp = it.timestamp,
-                        type = if (it.type.equals("photo") ) "photo" else "string",
+                        type = if (it.type.equals("photo") ) "photo" else if(it.type.equals("location")) "location" else "string",
                         nick =  it.sender ?: it.nick ?: "Unknown",
                         ip = it.ip,
-                        id = it.uuid ?: UUID.randomUUID().toString()
+                        id = it.uuid ?: UUID.randomUUID().toString(),
+                        latitude = it.latitude,
+                        longitude = it.longitude
                     )
                 })
                 adapter.notifyDataSetChanged()
@@ -532,10 +579,18 @@ class ChatFragment : Fragment() {
                 to = messageJson.getString("to"),
                 sender = messageJson.getString("from"),
                 relayedFrom = messageJson.optString("relayedFrom", null.toString()),
-                type = messageJson.optString("type", null.toString())
+                type = messageJson.optString("type", null.toString()) ,
+                latitude = if (messageJson.has("latitude") && !messageJson.isNull("latitude")) {
+                    messageJson.optDouble("latitude", Double.NaN).takeIf { !it.isNaN() }
+                } else null,
+                longitude = if (messageJson.has("longitude") && !messageJson.isNull("longitude")) {
+                    messageJson.optDouble("longitude", Double.NaN).takeIf { !it.isNaN() }
+                } else null
+
+
             )
             chatDao.insertChat(newChat)
-            Log.d("ChatFragment", "Message inserted into database:")
+            Log.d("ChatFragment", "Message inserted into database: $newChat")
         }
     }
     fun getChatsWithPeer(peerName: String, onResult: (List<ChatEntity>) -> Unit) {
