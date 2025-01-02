@@ -688,6 +688,8 @@ class ChatListFragment : Fragment() {
                 Log.e("LogArda", "Failed to request connection: ${e.message}")
                 hideLoadingBar()
                 Toast.makeText(context, "Connection failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                connectionsClient.stopDiscovery()
+                startDiscovery()
             }
 
         // Start the timeout countdown
