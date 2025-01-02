@@ -60,6 +60,8 @@ class ChatListFragment : Fragment() {
     private lateinit var deviceUUID: String
     private lateinit var connectionProgressBar: ProgressBar
     private lateinit var localName:String
+    private val connectionTimeoutHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private val CONNECTION_TIMEOUT_MS = 20000L // 10 seconds timeout
     private val chatDao by lazy {
         ChatDatabase.getDatabase(requireContext()).chatDao()
     }
@@ -312,13 +314,18 @@ class ChatListFragment : Fragment() {
             OnSessionClickListener {
             override fun onSessionClicked(peer: ChatGlobal) {
                 if(!peer.amIConnected){
-                    connectionsClient.requestConnection(peer.ip, peer.ip, connectionLifecycleCallback)
+                    //connectionsClient.requestConnection(peer.ip, peer.ip, connectionLifecycleCallback)
+                    attemptConnectionWithTimeout(peer.ip)
                     showLoadingBar()
                 }
                 else{
                     (activity as? ChatSessionsActivity)?.navigateToChatFragment(peer.ip, peer.deviceName.toString())
                 }
 
+            }
+
+            override fun onSessionLongClicked(peer: ChatGlobal) {
+                showDisconnectDialog(peer)
             }
         })
         recyclerView.adapter = adapter
@@ -344,6 +351,16 @@ class ChatListFragment : Fragment() {
                     endpointId: String,
                     connectionInfo: ConnectionInfo
                 ) {
+                    Log.d("DeviceNameBABACIk:",connectionInfo.endpointName)
+                    val peerExists = discoveredPeers.any { it.ip == endpointId || it.deviceName == connectionInfo.endpointName }
+
+                    if (!peerExists) {
+                        Log.w("NearbyConnection", "Rejecting unknown connection request from $endpointId (${connectionInfo.endpointName})")
+                        connectionsClient.rejectConnection(endpointId)
+                        connectionTimeoutHandler.removeCallbacksAndMessages(null)
+                        Toast.makeText(context, "Rejected connection from unknown device: ${connectionInfo.endpointName}", Toast.LENGTH_SHORT).show()
+                        return
+                    }
                     activity?.runOnUiThread {
                         AlertDialog.Builder(requireContext())
                             .setTitle("Connection Request")
@@ -353,6 +370,7 @@ class ChatListFragment : Fragment() {
                             }
                             .setNegativeButton("Reject") { dialog, which ->
                                 connectionsClient.rejectConnection(endpointId)
+                                connectionTimeoutHandler.removeCallbacksAndMessages(null)
                                 Toast.makeText(context, "Connection rejected", Toast.LENGTH_SHORT).show()
                             }
                             .setCancelable(false)
@@ -361,6 +379,7 @@ class ChatListFragment : Fragment() {
                 }
 
                 override fun onConnectionResult(endpointId: String, result: ConnectionResolution) {
+                    connectionTimeoutHandler.removeCallbacksAndMessages(null)
                     if (result.status.isSuccess) {
                         // 1) Mark the endpoint as connected
                         hideLoadingBar()
@@ -376,7 +395,7 @@ class ChatListFragment : Fragment() {
                         Log.d("LogArda", "Successfully connected to $endpointName")
                         // 4) Share your existing connections with the newly connected peer
                         shareConnectionsWithPeer(endpointId)
-
+                        discoveredPeers.firstOrNull { it.ip == endpointId }?.amIConnected = true
                         // 5) Request their connections (to build your graph if needed)
                         requestConnections(endpointId)
                         //displayGraph(deviceUUID)
@@ -395,6 +414,13 @@ class ChatListFragment : Fragment() {
                     sharedViewModel.removeConnection(endpointId)
                     Log.d("LogArda", "Disconnected from $endpointId")
                     discoveredPeers.firstOrNull { it.ip == endpointId }?.amIConnected = false
+
+                    discoveredPeers.find { it.ip == endpointId }?.let {
+                        it.amIConnected = false
+                    }
+                    adapter.notifyDataSetChanged()
+                    connectionsClient.stopDiscovery()
+
 
                     // 2) Log
                     Log.d("LogArda", "Disconnected from $endpointId")
@@ -426,9 +452,19 @@ class ChatListFragment : Fragment() {
                     //connectionsClient.requestConnection("DeviceName", endpointId, connectionLifecycleCallback)
                     val deviceName = info.endpointName
                     Log.d("LogArda", "Discovered $endpointId")
-                    if (discoveredPeers.none { it.ip == endpointId }) {
+                    val existingPeer = discoveredPeers.find { it.deviceName == deviceName }
+                    if (existingPeer != null) {
+                        Log.d("LogArda", "Duplicate device detected: $deviceName (endpointId: $endpointId)")
+                        if (!existingPeer.amIConnected) {
+                            // Update the IP (endpointId) in case it's a re-discovery
+                            existingPeer.ip = endpointId
+                            adapter.notifyDataSetChanged()
+                        }
+                    } else {
+                        // Add as a new peer if not already discovered
                         discoveredPeers.add(ChatGlobal(endpointId, 8000, false, amIConnected = false, deviceName = deviceName))
                         adapter.notifyDataSetChanged()
+                        Log.d("LogArda", "New device added: $deviceName (endpointId: $endpointId)")
                     }
                 }
 
@@ -459,6 +495,7 @@ class ChatListFragment : Fragment() {
         }
 
         override fun onConnectionResult(endpointId: String, result: ConnectionResolution) {
+            connectionTimeoutHandler.removeCallbacksAndMessages(null)
             if (result.status.isSuccess) {
                 // 1) Mark the endpoint as connected locally
                 hideLoadingBar()
@@ -472,6 +509,7 @@ class ChatListFragment : Fragment() {
                 val endpointName = discoveredPeers.firstOrNull { it.ip == endpointId }?.deviceName
                     ?: "Unknown Device"
                 Log.d("LogArda", "Successfully connected to $endpointName")
+                discoveredPeers.firstOrNull { it.ip == endpointId }?.amIConnected = true
                 sharedViewModel.addMessagesPrivacy(endpointName,false)
                 sharedViewModel.mapNameEndpoint[endpointId] = endpointName
                 // 4) Share existing connections with the newly connected peer
@@ -498,6 +536,13 @@ class ChatListFragment : Fragment() {
             sharedViewModel.removeConnection(endpointId)
             //Log.d("LogArda", "Disconnected from $endpointId")
             discoveredPeers.firstOrNull { it.ip == endpointId }?.amIConnected = false
+
+            discoveredPeers.find { it.ip == endpointId }?.let {
+                it.amIConnected = false
+            }
+            adapter.notifyDataSetChanged()
+            connectionsClient.stopDiscovery()
+            startDiscovery()
 
             // 2) Log
            //Log.d("LogArda", "Disconnected from $endpointId")
@@ -632,6 +677,60 @@ class ChatListFragment : Fragment() {
             connectionProgressBar.visibility = View.GONE
         }
     }
+
+    private fun attemptConnectionWithTimeout(endpointId: String) {
+        // Start the connection request
+        connectionsClient.requestConnection(endpointId, endpointId, connectionLifecycleCallback)
+            .addOnSuccessListener {
+                Log.d("LogArda", "Connection request sent to $endpointId")
+            }
+            .addOnFailureListener { e ->
+                Log.e("LogArda", "Failed to request connection: ${e.message}")
+                hideLoadingBar()
+                Toast.makeText(context, "Connection failed: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+
+        // Start the timeout countdown
+        connectionTimeoutHandler.postDelayed({
+            val peer = discoveredPeers.find { it.ip == endpointId }
+            if (peer != null && !peer.amIConnected) {
+                Log.w("LogArda", "Connection to $endpointId timed out.")
+                //connectionsClient.stopAllEndpoints()
+                peer.amIConnected = false
+                adapter.notifyDataSetChanged()
+                hideLoadingBar()
+                Toast.makeText(context, "Connection to ${peer.deviceName} timed out.", Toast.LENGTH_SHORT).show()
+            }
+        }, CONNECTION_TIMEOUT_MS)
+    }
+    private fun showDisconnectDialog(peer: ChatGlobal) {
+        AlertDialog.Builder(requireContext())
+            .setTitle("Disconnect")
+            .setMessage("Do you want to disconnect from ${peer.deviceName}?")
+            .setPositiveButton("Yes") { _, _ ->
+                disconnectPeer(peer)
+            }
+            .setNegativeButton("No", null)
+            .setCancelable(true)
+            .show()
+    }
+
+    private fun disconnectPeer(peer: ChatGlobal) {
+        if (peer.amIConnected) {
+            connectionsClient.disconnectFromEndpoint(peer.ip)
+            peer.amIConnected = false
+            adapter.notifyDataSetChanged()
+            // Remove from shared ViewModel
+            sharedViewModel.removeConnection(peer.ip)
+
+            Toast.makeText(context, "${peer.deviceName} disconnected.", Toast.LENGTH_SHORT).show()
+            Log.d("ChatListFragment", "${peer.deviceName} disconnected successfully.")
+        } else {
+            Toast.makeText(context, "${peer.deviceName} is already disconnected.", Toast.LENGTH_SHORT).show()
+            Log.w("ChatListFragment", "Attempted to disconnect ${peer.deviceName}, but it was already disconnected.")
+        }
+    }
+
 
 
 }

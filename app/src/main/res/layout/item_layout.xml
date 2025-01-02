@@ -1,4 +1,5 @@
-<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+<com.google.android.material.card.MaterialCardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
@@ -14,7 +15,7 @@
         android:layout_height="wrap_content"
         android:padding="16dp">
 
-        <!-- Chat Details (Session Name, IP/Port, Last Unread Message) -->
+        <!-- Chat Details -->
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -25,7 +26,6 @@
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toStartOf="@id/connectSocketImage">
 
-            <!-- Chat Session Name -->
             <TextView
                 android:id="@+id/chatTitleTextView"
                 android:layout_width="match_parent"
@@ -35,7 +35,6 @@
                 android:textColor="@color/black"
                 android:textStyle="bold" />
 
-            <!-- IP and Port -->
             <TextView
                 android:id="@+id/chatSubtitleTextView"
                 android:layout_width="match_parent"
@@ -44,7 +43,6 @@
                 android:textSize="14sp"
                 android:textColor="@color/gray" />
 
-            <!-- Last Unread Message -->
             <TextView
                 android:id="@+id/lastMessageLabel"
                 android:layout_width="match_parent"
@@ -57,7 +55,6 @@
                 android:layout_marginTop="4dp" />
         </LinearLayout>
 
-        <!-- Time -->
         <TextView
             android:id="@+id/timeTextView"
             android:layout_width="wrap_content"
@@ -69,7 +66,6 @@
             app:layout_constraintTop_toTopOf="parent"
             android:layout_marginTop="8dp" />
 
-        <!-- Connect Button -->
         <ImageView
             android:id="@+id/connectSocketImage"
             android:layout_width="48dp"
@@ -81,7 +77,6 @@
             android:focusable="true"
             android:layout_marginTop="8dp" />
 
-        <!-- Online Indicator -->
         <View
             android:id="@+id/onlineIndicator"
             android:layout_width="12dp"
