@@ -12,5 +12,6 @@ data class Message(
     val relayedFrom:String? =null,
     val notify:String? =null,
     val latitude: Double? = null,
-    val longitude: Double? = null
+    val longitude: Double? = null,
+    val sendTime: Long? = null
 )

@@ -488,6 +488,7 @@ class ChatFragment : Fragment() {
                 put("from",deviceName)
                 put("id",id)
                 put("to",peerName)
+                put("sendTime",System.currentTimeMillis())
             }
 
             // Add to local RecyclerView

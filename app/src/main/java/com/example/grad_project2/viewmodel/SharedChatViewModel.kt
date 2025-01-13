@@ -44,7 +44,7 @@ class SharedChatViewModel : ViewModel() {
 
     // Get privacy for a specific key
     fun getMessagesPrivacy(key: String): Boolean? {
-        return messagesPrivate.get(key)// Default to false if the key doesn't exist
+        return messagesPrivate[key];
     }
 
     // Remove a specific privacy setting

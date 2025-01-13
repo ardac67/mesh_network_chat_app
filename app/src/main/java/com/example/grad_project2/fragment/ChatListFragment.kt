@@ -221,7 +221,9 @@ class ChatListFragment : Fragment() {
 
                     // Share the message with ChatFragment using ViewModel
                     sharedViewModel.postMessage(message)
-                    if(!deviceUUID.equals(json.getString("from")) && sharedViewModel.getMessagesPrivacy(json.getString("from")) == true){
+                    Log.d("From-Privacy","${json.getString("from") } ${json.getString("from")}")
+                    Log.d("From-Privacy","$json")
+                    if(!deviceUUID.equals(json.getString("from")) && (sharedViewModel.getMessagesPrivacy(json.getString("from")) != false)){
                         Log.d("Farting","Farting")
                         //discoveredPeers.forEach{
                             //chatGlobal ->
