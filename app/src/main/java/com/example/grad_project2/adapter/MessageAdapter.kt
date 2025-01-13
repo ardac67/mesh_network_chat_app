@@ -1,5 +1,6 @@
 package com.example.grad_project2.adapter
 
+import android.annotation.SuppressLint
 import android.content.Intent
 import android.graphics.BitmapFactory
 import android.net.Uri
@@ -184,9 +185,13 @@ class MessageAdapter(private val messages: List<Message>) : RecyclerView.Adapter
         val timestampTextView: TextView = itemView.findViewById(R.id.receivedTimestampTextView)
         val headerTextView: TextView = itemView.findViewById(R.id.receivedHeaderTextView)
 
+        @SuppressLint("SetTextI18n")
         fun bind(message: Message) {
+
+            val delayMs = message.delay ?: 0L
+            //Log.d("Send Time vs CurrentTime", "sendTime: $sendTime, currentTime: ${System.currentTimeMillis()}")
             messageTextView.text = message.text
-            timestampTextView.text = formatTimestamp(message.timestamp)
+            timestampTextView.text = "${formatTimestamp(message.timestamp)} Delay: $delayMs"
             headerTextView.text = buildString {
                 append("~")
                 append(message.nick)

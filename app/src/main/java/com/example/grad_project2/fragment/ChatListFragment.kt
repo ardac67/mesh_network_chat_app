@@ -187,6 +187,7 @@ class ChatListFragment : Fragment() {
                     val type = json.optString("type")?.takeIf { it.isNotEmpty() } ?: "string"
                     val latitude = if (json.has("latitude") && !json.isNull("latitude")) json.optDouble("latitude") else null
                     val longitude = if (json.has("longitude") && !json.isNull("longitude")) json.optDouble("longitude") else null
+                    val sendTime = if (json.has("sendTime")) json.optLong("sendTime") else null
                     val message = Message(
                         text = msgText,
                         isSentByMe = false,
@@ -198,8 +199,16 @@ class ChatListFragment : Fragment() {
                         relayedFrom = relayedFrom,
                         notify = notify,
                         latitude = latitude,
-                        longitude =longitude
+                        longitude =longitude,
+                        sendTime = sendTime
                     )
+                    val now = System.currentTimeMillis()
+                    val delayMs = if (message.sendTime != null) {
+                        kotlin.math.abs(now - message.sendTime!!)
+                    } else {
+                        0L
+                    }
+                    message.delay = delayMs
                     val chatPeer = discoveredPeers.find { it.deviceName == json.getString("from") }
                     Log.d("ardaaaaaaa", "$chatPeer")
                     if (chatPeer != null) {
@@ -363,6 +372,7 @@ class ChatListFragment : Fragment() {
                         Toast.makeText(context, "Rejected connection from unknown device: ${connectionInfo.endpointName}", Toast.LENGTH_SHORT).show()
                         return
                     }
+                    /*
                     activity?.runOnUiThread {
                         AlertDialog.Builder(requireContext())
                             .setTitle("Connection Request")
@@ -378,6 +388,9 @@ class ChatListFragment : Fragment() {
                             .setCancelable(false)
                             .show()
                     }
+
+                     */
+                    connectionsClient.acceptConnection(endpointId, payloadCallback)
                 }
 
                 override fun onConnectionResult(endpointId: String, result: ConnectionResolution) {
@@ -682,7 +695,7 @@ class ChatListFragment : Fragment() {
 
     private fun attemptConnectionWithTimeout(endpointId: String) {
         // Start the connection request
-        connectionsClient.requestConnection(endpointId, endpointId, connectionLifecycleCallback)
+        connectionsClient.requestConnection(deviceUUID, endpointId, connectionLifecycleCallback)
             .addOnSuccessListener {
                 Log.d("LogArda", "Connection request sent to $endpointId")
             }

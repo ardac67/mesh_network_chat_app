@@ -61,6 +61,10 @@ class ListSessions : AppCompatActivity() {
             override fun onSessionClicked(peer: ChatGlobal) {
                 connectToPeer(peer)
             }
+
+            override fun onSessionLongClicked(peer: ChatGlobal) {
+                TODO("Not yet implemented")
+            }
         })
         recyclerView.adapter = adapter
         manager.discoverPeers(channel, object : WifiP2pManager.ActionListener {

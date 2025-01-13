@@ -43,6 +43,7 @@ import com.google.android.gms.nearby.connection.PayloadTransferUpdate
 import com.vanniktech.emoji.EmojiManager
 import com.vanniktech.emoji.EmojiPopup
 import com.vanniktech.emoji.google.GoogleEmojiProvider
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
@@ -56,6 +57,7 @@ import java.util.UUID
 class ChatFragment : Fragment() {
 
     private lateinit var messagesRecyclerView: RecyclerView
+    private var sendInfitine:Boolean = false
     private lateinit var messageEditText: EditText
     private lateinit var sendButton: ImageView
     private lateinit var bannerTextView: TextView
@@ -191,7 +193,7 @@ class ChatFragment : Fragment() {
 
 
                 Log.d("MessageOBJLOCATION","$messageObj")
-                insertMessageToDatabase(messageObj)
+                //insertMessageToDatabase(messageObj)
 
             }
             else{
@@ -219,12 +221,13 @@ class ChatFragment : Fragment() {
                     messages.add(message)
                     adapter.notifyItemInserted(messages.size - 1)
                     messagesRecyclerView.scrollToPosition(messages.size - 1)
-                    insertMessageToDatabase(messageObj)
+                    //insertMessageToDatabase(messageObj)
                 }
             }
         }
 
         sendButton.setOnClickListener {
+            sendInfitine = false
             sendMessage()
         }
         topBannerSwitch.setOnCheckedChangeListener { _, isChecked ->
@@ -285,17 +288,174 @@ class ChatFragment : Fragment() {
         loadPeerChats(peerName)
     }
     private fun showAttachmentOptions() {
-        val options = arrayOf("Send Photo 📸", "Send Location 📍")
+        val options = arrayOf("Send Photo 📸", "Send Location 📍","Test Traffic","Send Test Message (10)")
         AlertDialog.Builder(requireContext())
             .setTitle("Choose an Option")
             .setItems(options) { _, which ->
                 when (which) {
                     0 -> pickPhoto()
                     1 -> sendLocation()
+                    2 -> sendInfiniteTest()
+                    3-> sendTen()
                 }
             }
             .show()
     }
+
+    private fun sendTen() {
+        sendInfitine = true
+        val deviceName = "${Build.MANUFACTURER} ${Build.MODEL}"
+        var counter = 0
+        viewLifecycleOwner.lifecycleScope.launch {
+            while (counter <= 10) {
+                val text = "sendTenMessage$counter , aaaaaaaaabbbbbbCCCCCDDDDDEEEfsae90213821mnasxbcm,zx9ZXCZCZXCXZcZXc247831jxnbakcbxzCXZCZcxz"
+                val timestamp = System.currentTimeMillis()
+                val formattedTimestamp = formatTimestamp(timestamp)
+                val id = UUID.randomUUID().toString()
+                // Create message JSON
+                val messageJson = JSONObject().apply {
+                    put("message", text)
+                    put("timestamp", formattedTimestamp)
+                    put("nick", "You")
+                    put("ip", getLocalIpAddress())
+                    put("from", deviceName)
+                    put("id", id)
+                    put("to", peerName)
+                    put("sendTime", System.currentTimeMillis())
+                }
+
+                // Add to local RecyclerView
+                val newMessage = Message(
+                    text = text,
+                    isSentByMe = true,
+                    timestamp = timestamp,
+                    type = "string",
+                    nick = "You",
+                    ip = getLocalIpAddress(),
+                    id = id
+                )
+                messages.add(newMessage)
+                adapter.notifyItemInserted(messages.size - 1)
+                messagesRecyclerView.scrollToPosition(messages.size - 1)
+                messageEditText.text.clear()
+                sharedViewModel.relayedMessages.add(id)
+                if (sharedViewModel.getMessagesPrivacy(peerName) == false) {
+                    val payload = Payload.fromBytes(messageJson.toString().toByteArray())
+                    connectionsClient.sendPayload(endpointId, payload)
+                        .addOnSuccessListener {
+                            Log.d("ChatFragment", "Message sent successfully: $text")
+                        }
+                        .addOnFailureListener { e ->
+                            Log.e("ChatFragment", "Failed to send message: ${e.message}")
+                            Toast.makeText(context, "Failed to send message", Toast.LENGTH_SHORT)
+                                .show()
+                        }
+                } else {
+                    Log.d("Bombarding", "Icerdemisen?")
+                    sharedViewModel.connectedEndpoints.value?.forEach { endpoints_of_others ->
+                        val new_payload = Payload.fromBytes(messageJson.toString().toByteArray())
+                        val checkForPublicity =
+                            sharedViewModel.mapNameEndpoint.get(endpoints_of_others)
+                        if (sharedViewModel.publicConnections.contains(checkForPublicity)) {
+                            connectionsClient.sendPayload(endpoints_of_others, new_payload)
+                                .addOnSuccessListener {
+                                    Log.d("Bombarding", "Message sent successfully: $text")
+                                }
+                                .addOnFailureListener { e ->
+                                    Log.e("Bombarding", "Failed to send message: ${e.message}")
+                                    Toast.makeText(
+                                        context,
+                                        "Failed to send message",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                        }
+
+                    }
+                }
+                counter++
+                delay(50)
+            }
+        }
+    }
+
+    private fun sendInfiniteTest() {
+        sendInfitine = true
+        val deviceName = "${Build.MANUFACTURER} ${Build.MODEL}"
+        var counter = 0
+        viewLifecycleOwner.lifecycleScope.launch {
+            while (sendInfitine) {
+                val text = "test_infinite$counter"
+                val timestamp = System.currentTimeMillis()
+                val formattedTimestamp = formatTimestamp(timestamp)
+                val id = UUID.randomUUID().toString()
+                // Create message JSON
+                val messageJson = JSONObject().apply {
+                    put("message", text)
+                    put("timestamp", formattedTimestamp)
+                    put("nick", "You")
+                    put("ip", getLocalIpAddress())
+                    put("from", deviceName)
+                    put("id", id)
+                    put("to", peerName)
+                    put("sendTime", System.currentTimeMillis())
+                }
+
+                // Add to local RecyclerView
+                val newMessage = Message(
+                    text = text,
+                    isSentByMe = true,
+                    timestamp = timestamp,
+                    type = "string",
+                    nick = "You",
+                    ip = getLocalIpAddress(),
+                    id = id
+                )
+                messages.add(newMessage)
+                adapter.notifyItemInserted(messages.size - 1)
+                messagesRecyclerView.scrollToPosition(messages.size - 1)
+                messageEditText.text.clear()
+                sharedViewModel.relayedMessages.add(id)
+                if (sharedViewModel.getMessagesPrivacy(peerName) == false) {
+                    val payload = Payload.fromBytes(messageJson.toString().toByteArray())
+                    connectionsClient.sendPayload(endpointId, payload)
+                        .addOnSuccessListener {
+                            Log.d("ChatFragment", "Message sent successfully: $text")
+                        }
+                        .addOnFailureListener { e ->
+                            Log.e("ChatFragment", "Failed to send message: ${e.message}")
+                            Toast.makeText(context, "Failed to send message", Toast.LENGTH_SHORT)
+                                .show()
+                        }
+                } else {
+                    Log.d("Bombarding", "Icerdemisen?")
+                    sharedViewModel.connectedEndpoints.value?.forEach { endpoints_of_others ->
+                        val new_payload = Payload.fromBytes(messageJson.toString().toByteArray())
+                        val checkForPublicity =
+                            sharedViewModel.mapNameEndpoint.get(endpoints_of_others)
+                        if (sharedViewModel.publicConnections.contains(checkForPublicity)) {
+                            connectionsClient.sendPayload(endpoints_of_others, new_payload)
+                                .addOnSuccessListener {
+                                    Log.d("Bombarding", "Message sent successfully: $text")
+                                }
+                                .addOnFailureListener { e ->
+                                    Log.e("Bombarding", "Failed to send message: ${e.message}")
+                                    Toast.makeText(
+                                        context,
+                                        "Failed to send message",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                        }
+
+                    }
+                }
+                counter++
+                delay(50)
+            }
+        }
+    }
+
     private fun pickPhoto() {
         val intent = Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
         photoPickerLauncher.launch(intent)
@@ -517,6 +677,7 @@ class ChatFragment : Fragment() {
                     }
                     .addOnFailureListener { e ->
                         Log.e("ChatFragment", "Failed to send message: ${e.message}")
+                        sendInfitine = false
                         Toast.makeText(context, "Failed to send message", Toast.LENGTH_SHORT).show()
                     }
             }
@@ -533,6 +694,7 @@ class ChatFragment : Fragment() {
                             }
                             .addOnFailureListener { e ->
                                 Log.e("Bombarding", "Failed to send message: ${e.message}")
+                                sendInfitine = false
                                 Toast.makeText(context, "Failed to send message", Toast.LENGTH_SHORT).show()
                             }
                     }

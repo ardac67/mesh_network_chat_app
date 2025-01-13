@@ -13,5 +13,6 @@ data class Message(
     val notify:String? =null,
     val latitude: Double? = null,
     val longitude: Double? = null,
-    val sendTime: Long? = null
+    val sendTime: Long? = null,
+    var delay:Long?= null
 )
