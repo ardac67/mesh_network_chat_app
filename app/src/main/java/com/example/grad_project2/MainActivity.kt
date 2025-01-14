@@ -38,6 +38,7 @@ class MainActivity : AppCompatActivity() {
         enableEdgeToEdge()
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        requestAllPermissions()
         initializeReceiver()
         checkAndRequestPermissions()
         val chatSessionList = binding.listSessionButton
@@ -91,14 +92,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == LOCATION_PERMISSION_REQUEST && grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
-            initializeWifiDetails()
-        } else {
-            Toast.makeText(this, "Permission denied. Cannot access Wi-Fi details.", Toast.LENGTH_SHORT).show()
-        }
-    }
 
     private fun initializeWifiDetails() {
         getWifiInfo { wifiInfo ->
@@ -187,4 +180,97 @@ class MainActivity : AppCompatActivity() {
             false
         }
     }
+    private fun getRequiredPermissions(): Array<String> {
+        return when {
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> {
+                arrayOf(
+                    Manifest.permission.NEARBY_WIFI_DEVICES,
+                    Manifest.permission.BLUETOOTH_ADVERTISE,
+                    Manifest.permission.BLUETOOTH_CONNECT,
+                    Manifest.permission.BLUETOOTH_SCAN,
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_MEDIA_LOCATION
+                )
+            }
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
+                arrayOf(
+                    Manifest.permission.BLUETOOTH_ADVERTISE,
+                    Manifest.permission.BLUETOOTH_CONNECT,
+                    Manifest.permission.BLUETOOTH_SCAN,
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_MEDIA_LOCATION
+                )
+            }
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.R -> {
+                arrayOf(
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.READ_EXTERNAL_STORAGE,
+                    Manifest.permission.ACCESS_MEDIA_LOCATION
+                )
+            }
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q -> {
+                arrayOf(
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_MEDIA_LOCATION
+                )
+            }
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.P -> {
+                arrayOf(
+                    Manifest.permission.ACCESS_COARSE_LOCATION,
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.BLUETOOTH,
+                    Manifest.permission.BLUETOOTH_ADMIN
+                )
+            }
+            else -> {
+                arrayOf(
+                    Manifest.permission.ACCESS_COARSE_LOCATION,
+                    Manifest.permission.ACCESS_FINE_LOCATION
+                )
+            }
+        }
+    }
+
+    private val PERMISSION_REQUEST_CODE = 1001
+
+    private fun hasAllPermissions(): Boolean {
+        val requiredPermissions = getRequiredPermissions()
+        return requiredPermissions.all {
+            ActivityCompat.checkSelfPermission(applicationContext, it) == PackageManager.PERMISSION_GRANTED
+        }
+    }
+
+    private fun requestAllPermissions() {
+        val requiredPermissions = getRequiredPermissions()
+        if (!hasAllPermissions()) {
+            ActivityCompat.requestPermissions(this, requiredPermissions, PERMISSION_REQUEST_CODE)
+        } else {
+            // All permissions granted
+            onPermissionsGranted()
+        }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == PERMISSION_REQUEST_CODE) {
+            if (grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
+                // All permissions granted
+                onPermissionsGranted()
+            } else {
+                // Permissions denied
+                Toast.makeText(this, "Permissions are required for this app to function", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun onPermissionsGranted() {
+        // Start your Nearby Connections or other functionality
+        Toast.makeText(this, "All permissions granted!", Toast.LENGTH_SHORT).show()
+    }
+
+
 }

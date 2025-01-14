@@ -193,7 +193,7 @@ class ChatFragment : Fragment() {
 
 
                 Log.d("MessageOBJLOCATION","$messageObj")
-                //insertMessageToDatabase(messageObj)
+                insertMessageToDatabase(messageObj)
 
             }
             else{
@@ -221,7 +221,7 @@ class ChatFragment : Fragment() {
                     messages.add(message)
                     adapter.notifyItemInserted(messages.size - 1)
                     messagesRecyclerView.scrollToPosition(messages.size - 1)
-                    //insertMessageToDatabase(messageObj)
+                    insertMessageToDatabase(messageObj)
                 }
             }
         }

@@ -9,6 +9,8 @@
     android:background="@drawable/gradient_background"
     tools:ignore="HardcodedText">
 
+
+
     <!-- Nested ScrollView to allow scrolling when content exceeds screen -->
     <androidx.core.widget.NestedScrollView
         android:id="@+id/nestedScrollView"
@@ -25,53 +27,90 @@
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:padding="8dp">
-
             <!-- Header Layout -->
+
+            <!-- RecyclerView -->
             <LinearLayout
                 android:id="@+id/headerLayout"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
+                android:orientation="vertical"
                 android:padding="16dp">
 
-                <!-- Circle Icon -->
-                <FrameLayout
-                    android:id="@+id/createSession"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
-                    android:layout_gravity="center"
-                    android:background="@drawable/message_icon"
-                    android:clickable="true" />
-
-                <!-- Spacer -->
-                <View
-                    android:layout_width="16dp"
-                    android:layout_height="match_parent" />
-
-                <!-- Title Text -->
-                <TextView
-                    android:id="@+id/headerTitle"
-                    android:layout_width="0dp"
+                <!-- Top Row: Icons and Title -->
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:fontFamily="sans-serif-medium"
-                    android:gravity="center"
-                    android:text="Stream Chat"
-                    android:textColor="#000000"
-                    android:textSize="22sp" />
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
 
-                <!-- Edit Icon -->
-                <ImageView
-                    android:id="@+id/editIcon"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
-                    android:contentDescription="Edit Icon"
-                    android:layout_gravity="center"
-                    android:src="@drawable/settings_icon" />
+                    <!-- Circle Icon -->
+                    <FrameLayout
+                        android:id="@+id/createSession"
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        android:layout_gravity="center"
+                        android:background="@drawable/message_icon"
+                        android:clickable="true" />
+
+                    <!-- Spacer -->
+                    <View
+                        android:layout_width="16dp"
+                        android:layout_height="match_parent" />
+
+                    <!-- Title Text -->
+                    <TextView
+                        android:id="@+id/headerTitle"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:fontFamily="sans-serif-medium"
+                        android:gravity="center"
+                        android:text="Stream Chat"
+                        android:textColor="#000000"
+                        android:textSize="22sp" />
+
+                    <!-- Edit Icon -->
+                    <ImageView
+                        android:id="@+id/editIcon"
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        android:layout_gravity="center"
+                        android:contentDescription="Edit Icon"
+                        android:src="@drawable/settings_icon" />
+                </LinearLayout>
+
+                <!-- Status Section -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingTop="8dp">
+
+                    <!-- Advertising Status -->
+                    <TextView
+                        android:id="@+id/advertisingStatus"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:padding="4dp"
+                        android:fontFamily="sans-serif"
+                        android:text="Advertising: Inactive"
+                        android:textColor="#FF0000"
+                        android:textSize="14sp" />
+
+                    <!-- Discovery Status -->
+                    <TextView
+                        android:id="@+id/discoveryStatus"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:padding="4dp"
+                        android:fontFamily="sans-serif"
+                        android:text="Discovery: Inactive"
+                        android:textColor="#FF0000"
+                        android:textSize="14sp" />
+                </LinearLayout>
             </LinearLayout>
 
-            <!-- RecyclerView -->
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/recyclerView"
                 android:layout_width="match_parent"

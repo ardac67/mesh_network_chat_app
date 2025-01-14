@@ -3,6 +3,7 @@ package com.example.grad_project2.fragment
 import android.Manifest
 import android.app.AlertDialog
 import android.content.pm.PackageManager
+import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
@@ -13,6 +14,7 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.ProgressBar
+import android.widget.TextView
 import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.core.app.ActivityCompat
@@ -51,7 +53,8 @@ class ChatListFragment : Fragment() {
     // A set to keep track of connected device endpoints
     val connectedEndpoints = mutableSetOf<String>()
     private lateinit var adapter: ChatItemAdapter
-
+    private lateinit var advertisingStatus: TextView
+    private lateinit var discoveryStatus: TextView
     // Nearby Connections client
     private lateinit var connectionsClient: ConnectionsClient
     private lateinit var recyclerView: RecyclerView
@@ -61,7 +64,7 @@ class ChatListFragment : Fragment() {
     private lateinit var connectionProgressBar: ProgressBar
     private lateinit var localName:String
     private val connectionTimeoutHandler = android.os.Handler(android.os.Looper.getMainLooper())
-    private val CONNECTION_TIMEOUT_MS = 20000L // 10 seconds timeout
+    private val CONNECTION_TIMEOUT_MS = 50000L // 50 seconds timeout
     private val chatDao by lazy {
         ChatDatabase.getDatabase(requireContext()).chatDao()
     }
@@ -77,6 +80,7 @@ class ChatListFragment : Fragment() {
             Log.d("RelayMessages", "Message already relayed, skipping: $messageId")
             return
         }
+        Log.d("RelayDebug", "sendTime in relayed message: ${receivedMessage.optLong("sendTime", -1)}")
 
         // Mark message as relayed
         sharedViewModel.relayedMessages.add(messageId)
@@ -315,8 +319,7 @@ class ChatListFragment : Fragment() {
         connectionGraph.getOrPut(deviceUUID.toString()) { GraphNode(deviceUUID.toString()) }
         Log.d("GraphDebug", "Local device added to graph: ${deviceUUID}")
         requestBluetoothPermissions()
-        startAdvertising()
-        startDiscovery()
+
     ////ef54025c-2ad0-32fd-8279-2b0c21ea00e5
         recyclerView = view.findViewById(R.id.recyclerView)
         recyclerView.layoutManager = LinearLayoutManager(requireContext())
@@ -348,150 +351,222 @@ class ChatListFragment : Fragment() {
         graphVisual.setOnClickListener{
             displayGraph(deviceName)
         }
+        startAdvertising()
+        startDiscovery()
+        advertisingStatus = view.findViewById(R.id.advertisingStatus)
+        discoveryStatus = view.findViewById(R.id.discoveryStatus)
+        val editIcon: ImageView = view.findViewById(R.id.editIcon)
+        editIcon.setOnClickListener {
+            toggleAdvertisingAndDiscovery()
+        }
+        toggleAdvertisingAndDiscovery()
     }
+
+    private fun toggleAdvertisingAndDiscovery() {
+        val connectionsClient = Nearby.getConnectionsClient(requireContext())
+
+        // Toggle Advertising
+        if (advertisingStatus.text.toString().contains("Inactive")) {
+            advertisingStatus.text = "Advertising: Active"
+            advertisingStatus.setTextColor(Color.parseColor("#008000")) // Green
+            startAdvertising()
+        } else {
+            advertisingStatus.text = "Advertising: Inactive"
+            advertisingStatus.setTextColor(Color.parseColor("#FF0000")) // Red
+            connectionsClient.stopAdvertising()
+        }
+
+        // Toggle Discovery
+        if (discoveryStatus.text.toString().contains("Inactive")) {
+            discoveryStatus.text = "Discovery: Active"
+            discoveryStatus.setTextColor(Color.parseColor("#008000")) // Green
+            startDiscovery()
+        } else {
+            discoveryStatus.text = "Discovery: Inactive"
+            discoveryStatus.setTextColor(Color.parseColor("#FF0000")) // Red
+            connectionsClient.stopDiscovery()
+        }
+    }
+
 
     private fun startAdvertising() {
         val deviceName = "${Build.MANUFACTURER} ${Build.MODEL}"
         println("Device Name: $deviceName")
         val connectionsClient = Nearby.getConnectionsClient(requireContext())
-        connectionsClient.startAdvertising(
-            deviceName, // Replace with your device name or ID
-            "com.example.grad_project2",
-            object : ConnectionLifecycleCallback() {
-                override fun onConnectionInitiated(
-                    endpointId: String,
-                    connectionInfo: ConnectionInfo
-                ) {
-                    Log.d("DeviceNameBABACIk:",connectionInfo.endpointName)
-                    val peerExists = discoveredPeers.any { it.ip == endpointId || it.deviceName == connectionInfo.endpointName }
 
-                    if (!peerExists) {
-                        Log.w("NearbyConnection", "Rejecting unknown connection request from $endpointId (${connectionInfo.endpointName})")
-                        connectionsClient.rejectConnection(endpointId)
-                        connectionTimeoutHandler.removeCallbacksAndMessages(null)
-                        Toast.makeText(context, "Rejected connection from unknown device: ${connectionInfo.endpointName}", Toast.LENGTH_SHORT).show()
-                        return
-                    }
-                    /*
-                    activity?.runOnUiThread {
-                        AlertDialog.Builder(requireContext())
-                            .setTitle("Connection Request")
-                            .setMessage("${connectionInfo.endpointName} wants to connect. Accept?")
-                            .setPositiveButton("Accept") { dialog, which ->
-                                connectionsClient.acceptConnection(endpointId, payloadCallback)
-                            }
-                            .setNegativeButton("Reject") { dialog, which ->
+        try {
+            connectionsClient.startAdvertising(
+                deviceName, // Replace with your device name or ID
+                "com.example.grad_project2",
+                object : ConnectionLifecycleCallback() {
+                    override fun onConnectionInitiated(
+                        endpointId: String,
+                        connectionInfo: ConnectionInfo
+                    ) {
+                        try {
+                            Log.d("DeviceNameBABACIk:", connectionInfo.endpointName)
+                            val peerExists = discoveredPeers.any { it.ip == endpointId || it.deviceName == connectionInfo.endpointName }
+
+                            if (!peerExists) {
+                                Log.w("NearbyConnection", "Rejecting unknown connection request from $endpointId (${connectionInfo.endpointName})")
                                 connectionsClient.rejectConnection(endpointId)
                                 connectionTimeoutHandler.removeCallbacksAndMessages(null)
-                                Toast.makeText(context, "Connection rejected", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "Rejected connection from unknown device: ${connectionInfo.endpointName}", Toast.LENGTH_SHORT).show()
+                                return
                             }
-                            .setCancelable(false)
-                            .show()
+
+                            activity?.runOnUiThread {
+                                AlertDialog.Builder(requireContext())
+                                    .setTitle("Connection Request")
+                                    .setMessage("${connectionInfo.endpointName} wants to connect. Accept?")
+                                    .setPositiveButton("Accept") { dialog, which ->
+                                        connectionsClient.acceptConnection(endpointId, payloadCallback)
+                                    }
+                                    .setNegativeButton("Reject") { dialog, which ->
+                                        connectionsClient.rejectConnection(endpointId)
+                                        connectionTimeoutHandler.removeCallbacksAndMessages(null)
+                                        Toast.makeText(context, "Connection rejected", Toast.LENGTH_SHORT).show()
+                                    }
+                                    .setCancelable(false)
+                                    .show()
+                            }
+                        } catch (e: Exception) {
+                            Log.e("startAdvertising", "Error in onConnectionInitiated: ${e.message}", e)
+                        }
                     }
 
-                     */
-                    connectionsClient.acceptConnection(endpointId, payloadCallback)
-                }
+                    override fun onConnectionResult(endpointId: String, result: ConnectionResolution) {
+                        try {
+                            connectionTimeoutHandler.removeCallbacksAndMessages(null)
+                            if (result.status.isSuccess) {
+                                // 1) Mark the endpoint as connected
+                                hideLoadingBar()
+                                sharedViewModel.addConnection(endpointId)
+                                discoveredPeers.firstOrNull { it.ip == endpointId }?.amIConnected = true
 
-                override fun onConnectionResult(endpointId: String, result: ConnectionResolution) {
-                    connectionTimeoutHandler.removeCallbacksAndMessages(null)
-                    if (result.status.isSuccess) {
-                        // 1) Mark the endpoint as connected
-                        hideLoadingBar()
-                        sharedViewModel.addConnection(endpointId)
-                        discoveredPeers.firstOrNull { it.ip == endpointId }?.amIConnected = true
+                                // 2) Log success
+                                Log.d("LogArda", "Connected to $endpointId")
 
-                        // 2) Log success
-                        Log.d("LogArda", "Connected to $endpointId")
-
-                        // 3) Retrieve the friendly name
-                        val endpointName = discoveredPeers.firstOrNull { it.ip == endpointId }?.deviceName ?: "Unknown Device"
-                        sharedViewModel.mapNameEndpoint[endpointId] = endpointName
-                        Log.d("LogArda", "Successfully connected to $endpointName")
-                        // 4) Share your existing connections with the newly connected peer
-                        shareConnectionsWithPeer(endpointId)
-                        discoveredPeers.firstOrNull { it.ip == endpointId }?.amIConnected = true
-                        // 5) Request their connections (to build your graph if needed)
-                        requestConnections(endpointId)
-                        //displayGraph(deviceUUID)
-                        sharedViewModel.addMessagesPrivacy(endpointName,false)
-                        // 6) Immediately open the chat
-                        (activity as? ChatSessionsActivity)?.navigateToChatFragment(endpointId, endpointName)
+                                // 3) Retrieve the friendly name
+                                val endpointName = discoveredPeers.firstOrNull { it.ip == endpointId }?.deviceName ?: "Unknown Device"
+                                sharedViewModel.mapNameEndpoint[endpointId] = endpointName
+                                Log.d("LogArda", "Successfully connected to $endpointName")
+                                // 4) Share your existing connections with the newly connected peer
+                                shareConnectionsWithPeer(endpointId)
+                                discoveredPeers.firstOrNull { it.ip == endpointId }?.amIConnected = true
+                                // 5) Request their connections (to build your graph if needed)
+                                requestConnections(endpointId)
+                                //displayGraph(deviceUUID)
+                                sharedViewModel.addMessagesPrivacy(endpointName, false)
+                                // 6) Immediately open the chat
+                                (activity as? ChatSessionsActivity)?.navigateToChatFragment(endpointId, endpointName)
+                            } else {
+                                Toast.makeText(context, "Connection rejected1", Toast.LENGTH_SHORT).show()
+                                discoveredPeers.firstOrNull { it.ip == endpointId }?.amIConnected = false
+                            }
+                        } catch (e: Exception) {
+                            Log.e("startAdvertising", "Error in onConnectionResult: ${e.message}", e)
+                        }
                     }
-                    else{
-                        Toast.makeText(context, "Connection rejected1", Toast.LENGTH_SHORT).show()
-                        discoveredPeers.firstOrNull { it.ip == endpointId }?.amIConnected = false
+
+                    override fun onDisconnected(endpointId: String) {
+                        try {
+                            sharedViewModel.removeConnection(endpointId)
+                            Log.d("LogArda", "Disconnected from $endpointId")
+                            discoveredPeers.firstOrNull { it.ip == endpointId }?.amIConnected = false
+
+                            discoveredPeers.find { it.ip == endpointId }?.let {
+                                it.amIConnected = false
+                            }
+                            adapter.notifyDataSetChanged()
+                            connectionsClient.stopDiscovery()
+
+                            // 2) Log
+                            Log.d("LogArda", "Disconnected from $endpointId")
+
+                            // 3) Post a "disconnected" message to the chat
+                            val systemMessage = Message(
+                                text = "User $endpointId has disconnected.",
+                                isSentByMe = false,
+                                timestamp = System.currentTimeMillis(),
+                                type = "system",
+                                nick = "System",       // or any nickname you want to indicate it's a system message
+                                ip = endpointId,       // or "N/A" if you prefer
+                                from = "System"        // so ChatFragment knows it's a system message
+                            )
+                            sharedViewModel.postMessage(systemMessage)
+                        } catch (e: Exception) {
+                            Log.e("startAdvertising", "Error in onDisconnected: ${e.message}", e)
+                        }
                     }
-                }
-
-
-                override fun onDisconnected(endpointId: String) {
-                    sharedViewModel.removeConnection(endpointId)
-                    Log.d("LogArda", "Disconnected from $endpointId")
-                    discoveredPeers.firstOrNull { it.ip == endpointId }?.amIConnected = false
-
-                    discoveredPeers.find { it.ip == endpointId }?.let {
-                        it.amIConnected = false
-                    }
-                    adapter.notifyDataSetChanged()
-                    connectionsClient.stopDiscovery()
-
-
-                    // 2) Log
-                    Log.d("LogArda", "Disconnected from $endpointId")
-
-                    // 3) Post a "disconnected" message to the chat
-                    val systemMessage = Message(
-                        text = "User $endpointId has disconnected.",
-                        isSentByMe = false,
-                        timestamp = System.currentTimeMillis(),
-                        type = "system",
-                        nick = "System",       // or any nickname you want to indicate it's a system message
-                        ip = endpointId,       // or "N/A" if you prefer
-                        from = "System"        // so ChatFragment knows it's a system message
-                    )
-                    sharedViewModel.postMessage(systemMessage)
-                }
-            },
-            AdvertisingOptions.Builder().setStrategy(Strategy.P2P_CLUSTER).build()
-        )
+                },
+                AdvertisingOptions.Builder().setStrategy(Strategy.P2P_CLUSTER).build()
+            )
+        } catch (e: Exception) {
+            Log.e("startAdvertising", "Failed to start advertising: ${e.message}", e)
+            toggleAdvertisingAndDiscovery()
+        }
     }
 
 
     private fun startDiscovery() {
         val connectionsClient = Nearby.getConnectionsClient(requireContext())
-        connectionsClient.startDiscovery(
-            "com.example.grad_project2",
-            object : EndpointDiscoveryCallback() {
-                override fun onEndpointFound(endpointId: String, info: DiscoveredEndpointInfo) {
-                    //connectionsClient.requestConnection("DeviceName", endpointId, connectionLifecycleCallback)
-                    val deviceName = info.endpointName
-                    Log.d("LogArda", "Discovered $endpointId")
-                    val existingPeer = discoveredPeers.find { it.deviceName == deviceName }
-                    if (existingPeer != null) {
-                        Log.d("LogArda", "Duplicate device detected: $deviceName (endpointId: $endpointId)")
-                        if (!existingPeer.amIConnected) {
-                            // Update the IP (endpointId) in case it's a re-discovery
-                            existingPeer.ip = endpointId
-                            adapter.notifyDataSetChanged()
-                        }
-                    } else {
-                        // Add as a new peer if not already discovered
-                        discoveredPeers.add(ChatGlobal(endpointId, 8000, false, amIConnected = false, deviceName = deviceName))
-                        adapter.notifyDataSetChanged()
-                        Log.d("LogArda", "New device added: $deviceName (endpointId: $endpointId)")
-                    }
-                }
 
-                override fun onEndpointLost(endpointId: String) {
-                    //discoveredPeers.removeAll { !it.amIConnected && it.ip == endpointId }
-                    //adapter.notifyDataSetChanged()
-                    Log.d("LogArda", "Lost connection to $endpointId")
-                }
-            },
-            DiscoveryOptions.Builder().setStrategy(Strategy.P2P_CLUSTER).build()
-        )
+        try {
+            connectionsClient.startDiscovery(
+                "com.example.grad_project2",
+                object : EndpointDiscoveryCallback() {
+                    override fun onEndpointFound(endpointId: String, info: DiscoveredEndpointInfo) {
+                        try {
+                            val deviceName = info.endpointName
+                            Log.d("LogArda", "Discovered $endpointId")
+
+                            val existingPeer = discoveredPeers.find { it.deviceName == deviceName }
+                            if (existingPeer != null) {
+                                Log.d("LogArda", "Duplicate device detected: $deviceName (endpointId: $endpointId)")
+                                if (!existingPeer.amIConnected) {
+                                    // Update the IP (endpointId) in case it's a re-discovery
+                                    existingPeer.ip = endpointId
+                                    adapter.notifyDataSetChanged()
+                                }
+                            } else {
+                                // Add as a new peer if not already discovered
+                                discoveredPeers.add(
+                                    ChatGlobal(
+                                        endpointId,
+                                        8000,
+                                        false,
+                                        amIConnected = false,
+                                        deviceName = deviceName
+                                    )
+                                )
+                                adapter.notifyDataSetChanged()
+                                Log.d("LogArda", "New device added: $deviceName (endpointId: $endpointId)")
+                            }
+                        } catch (e: Exception) {
+                            Log.e("startDiscovery", "Error handling endpointFound for $endpointId: ${e.message}", e)
+                        }
+                    }
+
+                    override fun onEndpointLost(endpointId: String) {
+                        try {
+                            Log.d("LogArda", "Lost connection to $endpointId")
+                            // Optionally remove lost peers from the list
+                            discoveredPeers.removeAll { it.ip == endpointId && !it.amIConnected }
+                            adapter.notifyDataSetChanged()
+                        } catch (e: Exception) {
+                            Log.e("startDiscovery", "Error handling endpointLost for $endpointId: ${e.message}", e)
+                        }
+                    }
+                },
+                DiscoveryOptions.Builder().setStrategy(Strategy.P2P_CLUSTER).build()
+            )
+        } catch (e: Exception) {
+            Log.e("startDiscovery", "Failed to start discovery: ${e.message}", e)
+            toggleAdvertisingAndDiscovery()
+        }
     }
+
 
     fun generateDeviceUUID(): UUID {
         val androidId =
@@ -695,7 +770,7 @@ class ChatListFragment : Fragment() {
 
     private fun attemptConnectionWithTimeout(endpointId: String) {
         // Start the connection request
-        connectionsClient.requestConnection(deviceUUID, endpointId, connectionLifecycleCallback)
+        connectionsClient.requestConnection(endpointId, endpointId, connectionLifecycleCallback)
             .addOnSuccessListener {
                 Log.d("LogArda", "Connection request sent to $endpointId")
             }
