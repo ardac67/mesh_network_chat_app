@@ -15,6 +15,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.example.grad_project2.model.Message
 import com.example.grad_project2.R
+import org.w3c.dom.Text
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -90,10 +91,12 @@ class MessageAdapter(private val messages: List<Message>) : RecyclerView.Adapter
     }
     class SentImageViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         private val imageView: ImageView = itemView.findViewById(R.id.sentImageView)
-
+        private val textView: TextView = itemView.findViewById(R.id.sentTimestampTextView)
         fun bind(message: Message) {
             if (message.text.isNotEmpty()) {
                 val base64Image = message.text
+                val delayMs = message.delay ?: 0L
+                textView.text = message.nick + " " + formatTimestamp(message.timestamp)
                 // ✅ Decode Base64 into Bitmap
                 val imageBytes = Base64.decode(base64Image, Base64.DEFAULT)
                 val bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
@@ -106,15 +109,21 @@ class MessageAdapter(private val messages: List<Message>) : RecyclerView.Adapter
                 Log.e("SentImageViewHolder", "Empty URI for image message")
             }
         }
+        private fun formatTimestamp(timestamp: Long): String {
+            val sdf = SimpleDateFormat("HH:mm", Locale.getDefault())
+            return sdf.format(Date(timestamp))
+        }
     }
 
     // 🖼️ Received Image ViewHolder
     class ReceivedImageViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         private val imageView: ImageView = itemView.findViewById(R.id.receivedImageView)
-
+        private val textView: TextView = itemView.findViewById(R.id.receivedTimestampTextView)
         fun bind(message: Message) {
             val base64Image = message.text
             // ✅ Decode Base64 into Bitmap
+            val delayMs = message.delay ?: 0L
+            textView.text = message.nick + " " + formatTimestamp(message.timestamp) + " " + delayMs
             val imageBytes = Base64.decode(base64Image, Base64.DEFAULT)
             val bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
             Log.d("ReceivedImageViewHolder", "Binding image with URI: ${message.text}")
@@ -127,14 +136,20 @@ class MessageAdapter(private val messages: List<Message>) : RecyclerView.Adapter
                 Log.e("SentImageViewHolder", "Empty URI for image message")
             }
         }
+        private fun formatTimestamp(timestamp: Long): String {
+            val sdf = SimpleDateFormat("HH:mm", Locale.getDefault())
+            return sdf.format(Date(timestamp))
+        }
     }
     class SentLocationViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        private val locationImageView: ImageView = itemView.findViewById(R.id.sentLocationPlaceholder)
+        private val text: TextView = itemView.findViewById(R.id.text)
         private val locationTextView: TextView = itemView.findViewById(R.id.sentLocationOverlay)
 
+        @SuppressLint("SetTextI18n")
         fun bind(message: Message) {
+            Log.d("ZARTINGEN", "UUUUUU")
             locationTextView.text = "📍 Lat: ${message.latitude}, Lng: ${message.longitude}"
-
+            text.text = message.nick + " " + formatTimestamp(message.timestamp)
             itemView.setOnClickListener {
                 val uri = Uri.parse("geo:${message.latitude},${message.longitude}?q=${message.latitude},${message.longitude}")
                 val intent = Intent(Intent.ACTION_VIEW, uri)
@@ -142,21 +157,33 @@ class MessageAdapter(private val messages: List<Message>) : RecyclerView.Adapter
                 itemView.context.startActivity(intent)
             }
         }
+        private fun formatTimestamp(timestamp: Long): String {
+            val sdf = SimpleDateFormat("HH:mm", Locale.getDefault())
+            return sdf.format(Date(timestamp))
+        }
     }
 
 
     class ReceivedLocationViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        private val text: TextView = itemView.findViewById(R.id.text)
         private val locationImageView: ImageView = itemView.findViewById(R.id.receivedLocationPlaceholder)
         private val locationTextView: TextView = itemView.findViewById(R.id.receivedLocationOverlay)
 
+        @SuppressLint("SetTextI18n")
         fun bind(message: Message) {
+            val delayMs = message.delay ?: 0L
             locationTextView.text = "📍 Lat: ${message.latitude}, Lng: ${message.longitude}"
+            text.text = "From: " + message.nick + " " + formatTimestamp(message.timestamp) + " Delay:" + delayMs
             itemView.setOnClickListener {
                 val uri = Uri.parse("geo:${message.latitude},${message.longitude}?q=${message.latitude},${message.longitude}")
                 val intent = Intent(Intent.ACTION_VIEW, uri)
                 intent.setPackage("com.google.android.apps.maps")
                 itemView.context.startActivity(intent)
             }
+        }
+        private fun formatTimestamp(timestamp: Long): String {
+            val sdf = SimpleDateFormat("HH:mm", Locale.getDefault())
+            return sdf.format(Date(timestamp))
         }
     }
 
@@ -171,6 +198,10 @@ class MessageAdapter(private val messages: List<Message>) : RecyclerView.Adapter
         val headerTextView: TextView = itemView.findViewById(R.id.sentHeaderTextView)
 
         fun bind(message: Message) {
+            headerTextView.text = buildString {
+                append("~")
+                append(message.nick)
+            }
             messageTextView.text = message.text
             timestampTextView.text = formatTimestamp(message.timestamp)
         }
@@ -195,8 +226,6 @@ class MessageAdapter(private val messages: List<Message>) : RecyclerView.Adapter
             headerTextView.text = buildString {
                 append("~")
                 append(message.nick)
-                append(" ")
-                append(message.ip)
             }
         }
         private fun formatTimestamp(timestamp: Long): String {
@@ -207,5 +236,6 @@ class MessageAdapter(private val messages: List<Message>) : RecyclerView.Adapter
     class SystemMessageViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val systemMessageTextView: TextView = itemView.findViewById(R.id.systemMessageTextView)
     }
+
 
 }

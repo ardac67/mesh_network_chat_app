@@ -23,12 +23,5 @@
         android:textSize="12sp"
         android:textColor="@android:color/black"
         android:layout_marginTop="4dp"/>
-
-    <TextView
-        android:id="@+id/receivedSenderTextView"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="From: User1"
-        android:textSize="12sp"
-        android:textColor="@android:color/darker_gray"/>
+    
 </LinearLayout>

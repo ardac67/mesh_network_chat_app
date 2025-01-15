@@ -109,6 +109,7 @@ class ChatFragment : Fragment() {
         }
     }
 
+
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
@@ -501,8 +502,9 @@ class ChatFragment : Fragment() {
                 put("message", base64Image) // Include image data directly
                 put("from", deviceName)
                 put("timestamp", timestamp)
+                put("sendTime",timestamp)
                 put("id", id)
-                put("nick", "You")
+                put("nick", sharedViewModel.nick)
                 put("ip", getLocalIpAddress())
                 put("to", peerName)
             }
@@ -526,7 +528,7 @@ class ChatFragment : Fragment() {
                     isSentByMe = true,
                     timestamp = timestamp,
                     type = "photo",
-                    nick = "You",
+                    nick = sharedViewModel.nick,
                     ip = getLocalIpAddress(),
                     id = id,
                 )
@@ -553,6 +555,7 @@ class ChatFragment : Fragment() {
                 Manifest.permission.ACCESS_FINE_LOCATION
             ) == PackageManager.PERMISSION_GRANTED
         ) {
+            //Log.d("ARDABABA","ARDdababa")
             // Permission is granted, fetch location
             val deviceName = "${Build.MANUFACTURER} ${Build.MODEL}"
             val id = UUID.randomUUID().toString()
@@ -567,10 +570,11 @@ class ChatFragment : Fragment() {
                             put("from", deviceName)
                             put("timestamp", System.currentTimeMillis())
                             put("id", id)
-                            put("nick", "You")
+                            put("nick", sharedViewModel.nick)
                             put("ip", getLocalIpAddress())
                             put("message","My location")
                             put("to",peerName)
+                            put("sendTime",System.currentTimeMillis())
                         }
 
                         val payload = Payload.fromBytes(locationJson.toString().toByteArray())
@@ -643,7 +647,7 @@ class ChatFragment : Fragment() {
             val messageJson = JSONObject().apply {
                 put("message", text)
                 put("timestamp", formattedTimestamp)
-                put("nick", "You")
+                put("nick", sharedViewModel.nick)
                 put("ip", getLocalIpAddress())
                 put("from",deviceName)
                 put("id",id)
@@ -657,7 +661,7 @@ class ChatFragment : Fragment() {
                 isSentByMe = true,
                 timestamp = timestamp,
                 type = "string",
-                nick = "You",
+                nick = sharedViewModel.nick,
                 ip = getLocalIpAddress(),
                 id = id
             )

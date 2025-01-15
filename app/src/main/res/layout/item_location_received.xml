@@ -35,6 +35,19 @@
             android:layout_gravity="center"
             android:background="#66000000"
             android:padding="4dp"/>
+        <TextView
+            android:id="@+id/text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Sender"
+            android:textColor="@android:color/white"
+            android:textStyle="bold"
+            android:background="#66000000"
+            android:padding="4dp"
+            app:layout_constraintTop_toBottomOf="@id/sentLocationOverlay"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"/>
+
     </FrameLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

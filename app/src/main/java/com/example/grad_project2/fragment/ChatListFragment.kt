@@ -461,7 +461,7 @@ class ChatListFragment : Fragment() {
                                 // 6) Immediately open the chat
                                 (activity as? ChatSessionsActivity)?.navigateToChatFragment(endpointId, endpointName)
                             } else {
-                                Toast.makeText(context, "Connection rejected1", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "Connection rejected", Toast.LENGTH_SHORT).show()
                                 discoveredPeers.firstOrNull { it.ip == endpointId }?.amIConnected = false
                             }
                         } catch (e: Exception) {
@@ -485,8 +485,9 @@ class ChatListFragment : Fragment() {
                             Log.d("LogArda", "Disconnected from $endpointId")
 
                             // 3) Post a "disconnected" message to the chat
+                            val displayName = sharedViewModel.mapNameEndpoint[endpointId] ?: "Unknown"
                             val systemMessage = Message(
-                                text = "User $endpointId has disconnected.",
+                                text = "User ${displayName} has disconnected.",
                                 isSentByMe = false,
                                 timestamp = System.currentTimeMillis(),
                                 type = "system",
@@ -494,7 +495,19 @@ class ChatListFragment : Fragment() {
                                 ip = endpointId,       // or "N/A" if you prefer
                                 from = "System"        // so ChatFragment knows it's a system message
                             )
+
                             sharedViewModel.postMessage(systemMessage)
+
+                            val systemMessageJson = JSONObject().apply {
+                                put("message", "User ${displayName} has disconnected.")
+                                put("isSentByMe", false)
+                                put("timestamp", System.currentTimeMillis())
+                                put("type", "system")
+                                put("nick", "System")
+                                put("ip", endpointId)       // or "N/A" if you prefer
+                                put("from", "System")       // indicates that it's a system message
+                            }
+                            relayMessage(systemMessageJson)
                         } catch (e: Exception) {
                             Log.e("startAdvertising", "Error in onDisconnected: ${e.message}", e)
                         }
@@ -616,7 +629,7 @@ class ChatListFragment : Fragment() {
                 Log.e("LogArda", "Failed to connect to $endpointId")
                 discoveredPeers.firstOrNull { it.ip == endpointId }?.amIConnected = false
                 hideLoadingBar()
-                Toast.makeText(context, "Connection rejected2", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Connection rejected", Toast.LENGTH_SHORT).show()
             }
         }
 
@@ -638,8 +651,9 @@ class ChatListFragment : Fragment() {
            //Log.d("LogArda", "Disconnected from $endpointId")
 
             // 3) Post a "disconnected" message to the chat
+            val displayName = sharedViewModel.mapNameEndpoint[endpointId] ?: "Unknown"
             val systemMessage = Message(
-                text = "User $endpointId has disconnected.",
+                text = "User $displayName has disconnected.",
                 isSentByMe = false,
                 timestamp = System.currentTimeMillis(),
                 type = "system",
@@ -648,6 +662,18 @@ class ChatListFragment : Fragment() {
                 from = "System"        // so ChatFragment knows it's a system message
             )
             sharedViewModel.postMessage(systemMessage)
+
+            val systemMessageJson = JSONObject().apply {
+                put("message", "User ${displayName} has disconnected.")
+                put("isSentByMe", false)
+                put("timestamp", System.currentTimeMillis())
+                put("type", "system")
+                put("nick", "System")
+                put("ip", endpointId)       // or "N/A" if you prefer
+                put("from", "System")       // indicates that it's a system message
+                put("id",UUID.randomUUID())
+            }
+            relayMessage(systemMessageJson)
         }
     }
 
@@ -736,12 +762,9 @@ class ChatListFragment : Fragment() {
 
 
     fun renderNode(node: GraphNode, level: Int) {
-        Log.d("GraphVisual", " ".repeat(level * 2) + node.deviceId)
         node.connections.forEach { renderNode(it, level + 1) }
     }
     private fun refreshNearbyConnections() {
-        Log.d("Nearby313131313131313", "Refreshing Nearby Connections...")
-
         // Stop all existing connections
         connectionsClient.stopAllEndpoints()
         connectionsClient.stopAdvertising()

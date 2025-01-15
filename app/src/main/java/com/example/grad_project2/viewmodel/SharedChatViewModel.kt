@@ -1,6 +1,7 @@
 package com.example.grad_project2.viewmodel
 
 
+import android.os.Build
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
@@ -18,6 +19,7 @@ class SharedChatViewModel : ViewModel() {
     val relayedMessages = mutableSetOf<String>()
     var publicConnections = mutableSetOf<String>()
     var mapNameEndpoint : MutableMap<String,String> = mutableMapOf()
+    val nick = "${Build.MANUFACTURER} ${Build.MODEL}"
 
     fun addConnection(value: String) {
         // Create a new set (immutable) that adds the new value
