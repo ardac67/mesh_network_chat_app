@@ -40,7 +40,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
         requestAllPermissions()
         initializeReceiver()
-        checkAndRequestPermissions()
+        //checkAndRequestPermissions()
         val chatSessionList = binding.listSessionButton
         val wifiName = binding.textWifiName
         chatSessionList.setOnClickListener {
@@ -189,7 +189,8 @@ class MainActivity : AppCompatActivity() {
                     Manifest.permission.BLUETOOTH_CONNECT,
                     Manifest.permission.BLUETOOTH_SCAN,
                     Manifest.permission.ACCESS_FINE_LOCATION,
-                    Manifest.permission.ACCESS_MEDIA_LOCATION
+                    Manifest.permission.ACCESS_MEDIA_LOCATION,
+                    Manifest.permission.ACCESS_WIFI_STATE
                 )
             }
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
@@ -198,20 +199,23 @@ class MainActivity : AppCompatActivity() {
                     Manifest.permission.BLUETOOTH_CONNECT,
                     Manifest.permission.BLUETOOTH_SCAN,
                     Manifest.permission.ACCESS_FINE_LOCATION,
-                    Manifest.permission.ACCESS_MEDIA_LOCATION
+                    Manifest.permission.ACCESS_MEDIA_LOCATION,
+                    Manifest.permission.ACCESS_WIFI_STATE
                 )
             }
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.R -> {
                 arrayOf(
                     Manifest.permission.ACCESS_FINE_LOCATION,
                     Manifest.permission.READ_EXTERNAL_STORAGE,
-                    Manifest.permission.ACCESS_MEDIA_LOCATION
+                    Manifest.permission.ACCESS_MEDIA_LOCATION,
+                    Manifest.permission.ACCESS_WIFI_STATE
                 )
             }
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q -> {
                 arrayOf(
                     Manifest.permission.ACCESS_FINE_LOCATION,
-                    Manifest.permission.ACCESS_MEDIA_LOCATION
+                    Manifest.permission.ACCESS_MEDIA_LOCATION,
+                    Manifest.permission.ACCESS_WIFI_STATE
                 )
             }
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.P -> {
@@ -219,13 +223,15 @@ class MainActivity : AppCompatActivity() {
                     Manifest.permission.ACCESS_COARSE_LOCATION,
                     Manifest.permission.ACCESS_FINE_LOCATION,
                     Manifest.permission.BLUETOOTH,
-                    Manifest.permission.BLUETOOTH_ADMIN
+                    Manifest.permission.BLUETOOTH_ADMIN,
+                    Manifest.permission.ACCESS_WIFI_STATE
                 )
             }
             else -> {
                 arrayOf(
                     Manifest.permission.ACCESS_COARSE_LOCATION,
                     Manifest.permission.ACCESS_FINE_LOCATION
+                    ,Manifest.permission.ACCESS_WIFI_STATE
                 )
             }
         }

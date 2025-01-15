@@ -318,7 +318,7 @@ class ChatListFragment : Fragment() {
         connectionsClient = Nearby.getConnectionsClient(requireContext())
         connectionGraph.getOrPut(deviceUUID.toString()) { GraphNode(deviceUUID.toString()) }
         Log.d("GraphDebug", "Local device added to graph: ${deviceUUID}")
-        requestBluetoothPermissions()
+        //requestBluetoothPermissions()
 
     ////ef54025c-2ad0-32fd-8279-2b0c21ea00e5
         recyclerView = view.findViewById(R.id.recyclerView)
